@@ -1,14 +1,15 @@
 {
     "domain": "zigbee_lock_manager",
     "name": "Zigbee Lock Manager",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "config_flow": true,
     "documentation": "https://github.com/xaxy55/Zigbee-Lock-Manager",
     "iot_class": "local_push",
-    "issue_tracker" : "https://github.com/xaxy55/Zigbee-Lock-Manager/issues",
+    "issue_tracker": "https://github.com/xaxy55/Zigbee-Lock-Manager/issues",
     "requirements": [],
     "dependencies": [],
-    "codeowners": ["@xaxy55"],
+    "codeowners": [
+        "@xaxy55"
+    ],
     "hacs": "integration"
-  }
-  
+}
