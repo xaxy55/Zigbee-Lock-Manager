@@ -66,13 +66,8 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Handle the case where no lock entities are available
         if not lock_entities:
-            errors["base"] = "no_locks"
             _LOGGER.warning("No locks found during config flow")
-            return self.async_show_form(
-                step_id="user",
-                errors=errors,
-                description_placeholders={"error": "No locks found in your Home Assistant instance."},
-            )
+            return self.async_abort(reason="no_locks")
 
         if user_input is not None:
             # Extract only the part after "lock." from the lock entity ID
