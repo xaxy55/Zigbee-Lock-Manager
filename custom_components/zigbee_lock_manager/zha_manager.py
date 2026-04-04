@@ -15,6 +15,26 @@ PACKAGE_DIR = "packages/zigbee_lock_manager"
 DASHBOARD_FILE = "zigbee_lock_manager_dashboard"  # Output file for the dashboard YAML
 
 
+def profile_render_settings(lock_profile: str) -> dict[str, str | int]:
+    """Return rendering settings for a lock profile."""
+    is_id_lock_202 = lock_profile == LOCK_PROFILE_ID_LOCK_202_MULTI
+    return {
+        "code_label": "Lock PIN" if is_id_lock_202 else "Lock Code",
+        "code_max": 10,
+        "code_validation_regex": "^[0-9]{4,10}$" if is_id_lock_202 else "^.{1,10}$",
+        "invalid_code_message": (
+            "Code slot {{ slot }} was not updated. Enter 4-10 digits only (ID Lock 202 Multi)."
+            if is_id_lock_202
+            else "Code slot {{ slot }} was not updated. Enter 1-10 characters."
+        ),
+    }
+
+
+def lock_slot_file_prefix(lock_name: str) -> str:
+    """Return generated slot filename prefix for a lock."""
+    return f"{lock_name.replace('.', '_')}_slot_"
+
+
 def _safe_path_within(base: str, filename: str) -> str:
     """Return ``os.path.join(base, filename)`` and raise if the result
     escapes *base* (path-traversal guard – OWASP A01)."""
@@ -75,21 +95,13 @@ async def create_helpers_and_automations(
     template_content = await load_template("zha_manager_template.yaml")
     template = jinja2.Template(template_content)
 
-    is_id_lock_202 = lock_profile == LOCK_PROFILE_ID_LOCK_202_MULTI
-    code_label = "Lock PIN" if is_id_lock_202 else "Lock Code"
-    code_max = 10
-    code_validation_regex = "^[0-9]{4,10}$" if is_id_lock_202 else "^.{1,10}$"
-    invalid_code_message = (
-        "Code slot {{ slot }} was not updated. Enter 4-10 digits only (ID Lock 202 Multi)."
-        if is_id_lock_202
-        else "Code slot {{ slot }} was not updated. Enter 1-10 characters."
-    )
+    render_settings = profile_render_settings(lock_profile)
 
     entity_registry = er.async_get(hass)
 
     # Remove previously generated slot YAML files for this lock so option
     # changes (for example, lower slot_count) don't leave stale automations.
-    lock_file_prefix = f"{lock_name.replace('.', '_')}_slot_"
+    lock_file_prefix = lock_slot_file_prefix(lock_name)
     for filename in os.listdir(package_path):
         if filename.startswith(lock_file_prefix) and filename.endswith(".yaml"):
             stale_file_path = _safe_path_within(package_path, filename)
@@ -107,10 +119,10 @@ async def create_helpers_and_automations(
         final_yaml_content = template.render(
             lock_name=lock_name,
             slot=slot,
-            code_label=code_label,
-            code_max=code_max,
-            code_validation_regex=code_validation_regex,
-            invalid_code_message=invalid_code_message,
+            code_label=render_settings["code_label"],
+            code_max=render_settings["code_max"],
+            code_validation_regex=render_settings["code_validation_regex"],
+            invalid_code_message=render_settings["invalid_code_message"],
         )
 
         # Write the final YAML content to the corresponding slot file
@@ -225,17 +237,34 @@ async def create_dashboard_yaml(
 async def remove_helpers_and_automations(hass, lock_name, slot_count):
     """Remove helpers and automations for lock manager."""
     entity_registry = er.async_get(hass)
+    lock_prefixes = (
+        f"input_text.{lock_name}_",
+        f"input_boolean.{lock_name}_",
+        f"input_button.{lock_name}_",
+    )
 
-    # Find all relevant entities and remove them
+    # Remove only entities generated for this lock instance.
     entities_to_remove = [
         entity for entity in entity_registry.entities.values()
-        if entity.platform == "zigbee_lock_manager"
+        if any(entity.entity_id.startswith(prefix) for prefix in lock_prefixes)
     ]
     for entity in entities_to_remove:
         entity_registry.async_remove(entity.entity_id)
 
-    # After removing entities, also remove the YAML directory
+    # Remove only generated YAML for this lock and optional dashboard file.
     package_path = hass.config.path(PACKAGE_DIR)
-    await hass.async_add_executor_job(shutil.rmtree, package_path)
+    lock_file_prefix = lock_slot_file_prefix(lock_name)
+    if os.path.isdir(package_path):
+        for filename in os.listdir(package_path):
+            if filename.startswith(lock_file_prefix) and filename.endswith(".yaml"):
+                slot_file_path = _safe_path_within(package_path, filename)
+                os.remove(slot_file_path)
+
+        dashboard_file_path = _safe_path_within(package_path, DASHBOARD_FILE)
+        if os.path.isfile(dashboard_file_path):
+            os.remove(dashboard_file_path)
+
+        if not os.listdir(package_path):
+            await hass.async_add_executor_job(shutil.rmtree, package_path)
 
     _LOGGER.info("Zigbee Lock Manager helpers and automations removed.")

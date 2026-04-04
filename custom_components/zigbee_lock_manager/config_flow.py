@@ -1,7 +1,16 @@
 import re
 import voluptuous as vol
 from homeassistant import config_entries
-from .const import DOMAIN, LOCK_PROFILE_GENERIC, LOCK_PROFILE_OPTIONS
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from .const import (
+    DOMAIN,
+    LOCK_PROFILE_GENERIC,
+    LOCK_PROFILE_ID_LOCK_202_MULTI,
+    LOCK_PROFILE_OPTIONS,
+    ID_LOCK_202_MANUFACTURER_HINTS,
+    ID_LOCK_202_MODEL_HINTS,
+)
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -10,10 +19,38 @@ _LOGGER = logging.getLogger(__name__)
 # HA restricts object IDs to lowercase letters, digits, underscores, and hyphens.
 _SAFE_NAME_RE = re.compile(r'^[a-z0-9_\-]+$')
 
+
+def infer_lock_profile(manufacturer: str | None, model: str | None) -> str:
+    """Infer lock profile from manufacturer and model names."""
+    manufacturer_l = (manufacturer or "").strip().lower()
+    model_l = (model or "").strip().lower()
+
+    if any(hint in manufacturer_l for hint in ID_LOCK_202_MANUFACTURER_HINTS):
+        return LOCK_PROFILE_ID_LOCK_202_MULTI
+    if any(hint in model_l for hint in ID_LOCK_202_MODEL_HINTS):
+        return LOCK_PROFILE_ID_LOCK_202_MULTI
+
+    return LOCK_PROFILE_GENERIC
+
 class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Zigbee Lock Manager."""
 
     VERSION = 1.0
+
+    def _detect_profile_for_lock_entity(self, lock_entity_id: str) -> str:
+        """Detect lock profile for a selected lock entity via registries."""
+        entity_registry = er.async_get(self.hass)
+        device_registry = dr.async_get(self.hass)
+
+        entity_entry = entity_registry.async_get(lock_entity_id)
+        if not entity_entry or not entity_entry.device_id:
+            return LOCK_PROFILE_GENERIC
+
+        device = device_registry.async_get(entity_entry.device_id)
+        if not device:
+            return LOCK_PROFILE_GENERIC
+
+        return infer_lock_profile(device.manufacturer, device.model)
 
     @staticmethod
     def async_get_options_flow(config_entry):
@@ -49,6 +86,11 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_lock_name"
                 _LOGGER.warning("Rejected unsafe lock name during config flow")
             else:
+                if not user_input.get("lock_profile"):
+                    user_input["lock_profile"] = self._detect_profile_for_lock_entity(
+                        full_lock_entity_id
+                    )
+
                 # Store the processed lock_name instead of the full entity ID
                 user_input["lock_name"] = lock_name
 
@@ -65,7 +107,10 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Coerce(int), vol.Range(min=1, max=100)
             ),
             vol.Required("lock_name", default=lock_entities[0]): vol.In(lock_entities),
-            vol.Optional("lock_profile", default=LOCK_PROFILE_GENERIC): vol.In(LOCK_PROFILE_OPTIONS),
+            vol.Optional(
+                "lock_profile",
+                default=self._detect_profile_for_lock_entity(lock_entities[0]),
+            ): vol.In(LOCK_PROFILE_OPTIONS),
         })
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -77,6 +122,21 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         self.config_entry = config_entry
 
+    def _detect_profile_for_lock_entity(self, lock_entity_id: str) -> str:
+        """Detect lock profile for a selected lock entity via registries."""
+        entity_registry = er.async_get(self.hass)
+        device_registry = dr.async_get(self.hass)
+
+        entity_entry = entity_registry.async_get(lock_entity_id)
+        if not entity_entry or not entity_entry.device_id:
+            return LOCK_PROFILE_GENERIC
+
+        device = device_registry.async_get(entity_entry.device_id)
+        if not device:
+            return LOCK_PROFILE_GENERIC
+
+        return infer_lock_profile(device.manufacturer, device.model)
+
     async def async_step_init(self, user_input=None):
         """Manage integration options."""
         if user_input is not None:
@@ -87,7 +147,12 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
         )
         current_lock_profile = self.config_entry.options.get(
             "lock_profile",
-            self.config_entry.data.get("lock_profile", LOCK_PROFILE_GENERIC),
+            self.config_entry.data.get(
+                "lock_profile",
+                self._detect_profile_for_lock_entity(
+                    f"lock.{self.config_entry.data.get('lock_name', '')}"
+                ),
+            ),
         )
 
         schema = vol.Schema({
