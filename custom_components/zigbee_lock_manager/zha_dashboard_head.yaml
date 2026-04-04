@@ -1,7 +1,7 @@
 title: Door Codes
 views:
-  - path: default_view
-    title: "{{ lock_name }}"
+  - path: overview
+    title: Overview
     cards:
       - type: markdown
         title: Lock Manager
@@ -23,3 +23,7 @@ views:
         entities:
           - entity: lock.{{ lock_name }}
             name: Door Lock
+
+  - path: code_slots
+    title: Code Slots
+    cards:

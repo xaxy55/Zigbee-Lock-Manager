@@ -19,6 +19,7 @@ This integration was inspired by [KeyMaster](https://github.com/FutureTense/keym
 * Clear code from lock
 * Supports ID Lock 202 Multi (Zigbee module) PIN workflows
 * Improved dashboard UX with lock summary, clearer slot form layout, and direct action buttons
+* Two-view dashboard layout: `Overview` and `Code Slots`
 
 ![Alt Text](ZLM_UI.jpg)
 
