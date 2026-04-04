@@ -54,6 +54,8 @@ Slots: `# of code slots you want to manage` <br>
 Lock: `entity_id of your ZHA keypad lock`
 Lock profile: `Generic ZHA Lock` or `ID Lock 202 Multi`
 
+After installation, you can change `slot_count` and `lock_profile` from the integration `Configure` options without removing and re-adding the integration.
+
 ### ID Lock 202 Multi notes
 If you are using ID Lock 202 Multi with the Zigbee module:
 0. In integration setup, select `Lock profile = ID Lock 202 Multi`.
