@@ -101,5 +101,5 @@ Done.
 
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/v/release/Fiercefish1/zigbee-lock-manager.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/v/release/Fiercefish1/Zigbee-Lock-Manager?display_name=tag&sort=semver&style=for-the-badge
 [releases]: https://github.com/Fiercefish1/Zigbee-Lock-Manager/releases

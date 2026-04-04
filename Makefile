@@ -40,13 +40,13 @@ help:
 	@echo "    $(GREEN)make lint$(RESET)           Run flake8 linter"
 	@echo ""
 	@echo "  $(BOLD)Versioning & Tagging$(RESET)"
-	@echo "    $(YELLOW)make bump-patch$(RESET)     Bump patch   $(DIM)(0.0.4 → 0.0.5)$(RESET)"
-	@echo "    $(YELLOW)make bump-minor$(RESET)     Bump minor   $(DIM)(0.0.4 → 0.1.0)$(RESET)"
-	@echo "    $(YELLOW)make bump-major$(RESET)     Bump major   $(DIM)(0.0.4 → 1.0.0)$(RESET)"
+	@echo "    $(YELLOW)make bump-patch$(RESET)     Test + bump patch + push tag (release)"
+	@echo "    $(YELLOW)make bump-minor$(RESET)     Test + bump minor + push tag (release)"
+	@echo "    $(YELLOW)make bump-major$(RESET)     Test + bump major + push tag (release)"
 	@echo "    $(YELLOW)make tag$(RESET)            Create + push a git tag for the current version"
-	@echo "    $(YELLOW)make release-patch$(RESET)  bump-patch → tag  (one step)"
-	@echo "    $(YELLOW)make release-minor$(RESET)  bump-minor → tag  (one step)"
-	@echo "    $(YELLOW)make release-major$(RESET)  bump-major → tag  (one step)"
+	@echo "    $(YELLOW)make release-patch$(RESET)  Alias of bump-patch"
+	@echo "    $(YELLOW)make release-minor$(RESET)  Alias of bump-minor"
+	@echo "    $(YELLOW)make release-major$(RESET)  Alias of bump-major"
 	@echo ""
 	@echo "  $(BOLD)Development$(RESET)"
 	@echo "    $(CYAN)make install$(RESET)        Install Python dev dependencies"
@@ -125,19 +125,22 @@ print(''); \
 	@echo "$(GREEN)Pushed version bump commit.$(RESET)"
 
 .PHONY: bump-patch
-bump-patch:
+bump-patch: test
 	@$(MAKE) --no-print-directory _set-version \
 		NEW_VERSION=$(VERSION_MAJOR).$(VERSION_MINOR).$(shell expr $(VERSION_PATCH) + 1)
+	@$(MAKE) --no-print-directory tag
 
 .PHONY: bump-minor
-bump-minor:
+bump-minor: test
 	@$(MAKE) --no-print-directory _set-version \
 		NEW_VERSION=$(VERSION_MAJOR).$(shell expr $(VERSION_MINOR) + 1).0
+	@$(MAKE) --no-print-directory tag
 
 .PHONY: bump-major
-bump-major:
+bump-major: test
 	@$(MAKE) --no-print-directory _set-version \
 		NEW_VERSION=$(shell expr $(VERSION_MAJOR) + 1).0.0
+	@$(MAKE) --no-print-directory tag
 
 # ── Tagging ───────────────────────────────────────────────────────────────────
 .PHONY: tag
@@ -150,10 +153,10 @@ tag:
 
 # ── One-step release targets ──────────────────────────────────────────────────
 .PHONY: release-patch
-release-patch: test bump-patch tag
+release-patch: bump-patch
 
 .PHONY: release-minor
-release-minor: test bump-minor tag
+release-minor: bump-minor
 
 .PHONY: release-major
-release-major: test bump-major tag
+release-major: bump-major
