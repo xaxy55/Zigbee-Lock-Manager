@@ -7,7 +7,11 @@ import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
-from .const import DOMAIN, LOCK_PROFILE_ID_LOCK_202_MULTI
+from .const import (
+    DEFAULT_ACTIVITY_EVENT_COUNT,
+    DOMAIN,
+    LOCK_PROFILE_ID_LOCK_202_MULTI,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +76,9 @@ async def create_helpers_and_automations(
     lock_name: str,
     config_entry,
     lock_profile: str = "generic",
+    enable_notifications: bool = False,
+    enable_presence_automation: bool = False,
+    activity_event_count: int = DEFAULT_ACTIVITY_EVENT_COUNT,
 ):
     """Create helpers and automations."""
     package_path = hass.config.path(PACKAGE_DIR)
@@ -119,10 +126,14 @@ async def create_helpers_and_automations(
         final_yaml_content = template.render(
             lock_name=lock_name,
             slot=slot,
+            slot_count=slot_count,
             code_label=render_settings["code_label"],
             code_max=render_settings["code_max"],
             code_validation_regex=render_settings["code_validation_regex"],
             invalid_code_message=render_settings["invalid_code_message"],
+            enable_notifications=enable_notifications,
+            enable_presence_automation=enable_presence_automation,
+            activity_event_count=activity_event_count,
         )
 
         # Write the final YAML content to the corresponding slot file
@@ -164,6 +175,10 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
     entity_id_input_text_user = f"input_text.{lock_name}_lock_user_{slot}" 
     entity_id_input_text_code = f"input_text.{lock_name}_lock_code_{slot}"  
     entity_id_input_boolean_status = f"input_boolean.{lock_name}_lock_code_status_{slot}"
+    entity_id_input_boolean_onetime = f"input_boolean.{lock_name}_lock_code_onetime_{slot}"
+    entity_id_input_boolean_presence_aware = (
+        f"input_boolean.{lock_name}_lock_code_presence_aware_{slot}"
+    )
     entity_id_input_button_update = f"input_button.{lock_name}_lock_code_update_{slot}"
     entity_id_input_button_clear = f"input_button.{lock_name}_lock_code_clear_{slot}"
 
@@ -172,6 +187,11 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
         {"entity_id": entity_id_input_text_user, "domain": "input_text"},
         {"entity_id": entity_id_input_text_code, "domain": "input_text"},
         {"entity_id": entity_id_input_boolean_status, "domain": "input_boolean"},
+        {"entity_id": entity_id_input_boolean_onetime, "domain": "input_boolean"},
+        {
+            "entity_id": entity_id_input_boolean_presence_aware,
+            "domain": "input_boolean",
+        },
         {"entity_id": entity_id_input_button_update, "domain": "input_button"},
         {"entity_id": entity_id_input_button_clear, "domain": "input_button"},
     ]
@@ -200,6 +220,9 @@ async def create_dashboard_yaml(
     slot_count: int,
     lock_name: str,
     lock_profile: str = "generic",
+    enable_notifications: bool = False,
+    enable_presence_automation: bool = False,
+    activity_event_count: int = DEFAULT_ACTIVITY_EVENT_COUNT,
 ):
     """Generate a dashboard YAML file."""
     package_path = hass.config.path(PACKAGE_DIR)
@@ -215,6 +238,9 @@ async def create_dashboard_yaml(
         dashboard_head_final = jinja2.Template(dashboard_head).render(
             lock_name=lock_name,
             lock_profile=lock_profile,
+            enable_notifications=enable_notifications,
+            enable_presence_automation=enable_presence_automation,
+            activity_event_count=activity_event_count,
         )
 
         # Write the dashboard head first

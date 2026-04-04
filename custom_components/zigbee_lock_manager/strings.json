@@ -7,11 +7,17 @@
         "data": {
           "lock_name": "Lock entity",
           "slot_count": "Number of PIN slots",
-          "lock_profile": "Lock profile"
+          "lock_profile": "Lock profile",
+          "enable_notifications": "Enable notifications",
+          "enable_presence_automation": "Enable presence-aware automations",
+          "activity_event_count": "Timeline event rows"
         },
         "data_description": {
           "slot_count": "How many PIN code slots to create (1–100).",
-          "lock_profile": "Choose the profile that matches your lock model for best compatibility."
+          "lock_profile": "Choose the profile that matches your lock model for best compatibility.",
+          "enable_notifications": "When enabled, automation events create persistent notifications.",
+          "enable_presence_automation": "Create automations that toggle selected slots based on occupancy.",
+          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10)."
         }
       }
     },
@@ -31,11 +37,17 @@
         "description": "Update PIN slot count and lock profile settings.",
         "data": {
           "slot_count": "Number of PIN slots",
-          "lock_profile": "Lock profile"
+          "lock_profile": "Lock profile",
+          "enable_notifications": "Enable notifications",
+          "enable_presence_automation": "Enable presence-aware automations",
+          "activity_event_count": "Timeline event rows"
         },
         "data_description": {
           "slot_count": "How many PIN code slots to create (1–100).",
-          "lock_profile": "Choose the profile that matches your lock model for best compatibility."
+          "lock_profile": "Choose the profile that matches your lock model for best compatibility.",
+          "enable_notifications": "When enabled, automation events create persistent notifications.",
+          "enable_presence_automation": "Create automations that toggle selected slots based on occupancy.",
+          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10)."
         }
       }
     }

@@ -11,10 +11,37 @@ input_text:
     max: {{ code_max }}
     mode: text
     icon: mdi:dialpad
+{% if slot == 1 %}
+{% for activity_index in range(1, activity_event_count + 1) %}
+
+  {{ lock_name }}_lock_activity_{{ activity_index }}:
+    name: "Activity {{ activity_index }}"
+    max: 255
+    mode: text
+{% endfor %}
+{% endif %}
 
 input_boolean:
   {{ lock_name }}_lock_code_status_{{ slot }}:
     name: "Code Status {{ slot }}"
+
+  {{ lock_name }}_lock_code_onetime_{{ slot }}:
+    name: "One-time PIN {{ slot }}"
+    icon: mdi:numeric-1-box
+
+  {{ lock_name }}_lock_code_presence_aware_{{ slot }}:
+    name: "Presence-aware {{ slot }}"
+    icon: mdi:account-group
+{% if slot == 1 %}
+
+  {{ lock_name }}_lock_notifications_enabled:
+    name: "Lock Manager Notifications"
+    initial: {{ 'true' if enable_notifications else 'false' }}
+
+  {{ lock_name }}_lock_presence_automation_enabled:
+    name: "Presence Automation Enabled"
+    initial: {{ 'true' if enable_presence_automation else 'false' }}
+{% endif %}
 
 input_button:
   {{ lock_name }}_lock_code_update_{{ slot }}:
@@ -24,6 +51,68 @@ input_button:
   {{ lock_name }}_lock_code_clear_{{ slot }}:
     name: "Clear Code {{ slot }}"
     icon: mdi:trash-can-outline
+
+{% if slot == 1 %}
+template:
+  - binary_sensor:
+      - name: "{{ lock_name }}_anyone_home"
+        unique_id: "{{ lock_name }}_anyone_home"
+        icon: mdi:home-account
+        state: '{{ "{{ expand(states.person) | selectattr(\"state\", \"eq\", \"home\") | list | count > 0 }}" }}'
+
+script:
+  {{ lock_name }}_record_activity:
+    alias: "{{ lock_name }}: Record Activity"
+    mode: queued
+    fields:
+      message:
+        description: "Activity message"
+    sequence:
+{% for activity_index in range(activity_event_count, 1, -1) %}
+      - service: input_text.set_value
+        data:
+          entity_id: input_text.{{ lock_name }}_lock_activity_{{ activity_index }}
+          value: '{{ "{{ states(\"input_text." ~ lock_name ~ "_lock_activity_" ~ (activity_index - 1) ~ "\") }}" }}'
+{% endfor %}
+      - service: input_text.set_value
+        data:
+          entity_id: input_text.{{ lock_name }}_lock_activity_1
+          value: '{{ "{{ message }}" }}'
+
+  {{ lock_name }}_audit_event:
+    alias: "{{ lock_name }}: Audit Event"
+    mode: queued
+    fields:
+      message:
+        description: "Audit message"
+    sequence:
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_record_activity
+        data:
+          variables:
+            message: '{{ "{{ message }}" }}'
+      - service: logbook.log
+        data:
+          name: "Zigbee Lock Manager"
+          message: '{{ "{{ message }}" }}'
+          entity_id: lock.{{ lock_name }}
+      - event: zigbee_lock_manager_audit
+        event_data:
+          lock_entity: lock.{{ lock_name }}
+          lock_name: "{{ lock_name }}"
+          message: '{{ "{{ message }}" }}'
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.{{ lock_name }}_lock_notifications_enabled
+                state: "on"
+            sequence:
+              - service: persistent_notification.create
+                data:
+                  title: "Zigbee Lock Manager"
+                  message: '{{ "{{ message }}" }}'
+{% endif %}
 
 # === Automations ===
 automation:
@@ -42,6 +131,12 @@ automation:
                   entity_id: lock.{{ lock_name }}
                 data:
                   code_slot: "{{ slot }}"
+              - service: script.turn_on
+                target:
+                  entity_id: script.{{ lock_name }}_audit_event
+                data:
+                  variables:
+                    message: "Enabled slot {{ slot }} for lock.{{ lock_name }}"
           - conditions:
               - condition: template
                 value_template: '{{ '{{ trigger.to_state.state == "off" }}' }}'
@@ -51,6 +146,12 @@ automation:
                   entity_id: lock.{{ lock_name }}
                 data:
                   code_slot: "{{ slot }}"
+              - service: script.turn_on
+                target:
+                  entity_id: script.{{ lock_name }}_audit_event
+                data:
+                  variables:
+                    message: "Disabled slot {{ slot }} for lock.{{ lock_name }}"
     mode: single
 
   - alias: "{{ lock_name }}: Update Lock Code {{ slot }}"
@@ -71,11 +172,23 @@ automation:
                 data:
                   code_slot: "{{ slot }}"
                   user_code: '{{ '{{ pin_value }}' }}'
+              - service: script.turn_on
+                target:
+                  entity_id: script.{{ lock_name }}_audit_event
+                data:
+                  variables:
+                    message: "Updated code in slot {{ slot }} for lock.{{ lock_name }}"
         default:
           - service: persistent_notification.create
             data:
               title: "Invalid lock code"
               message: "{{ invalid_code_message }}"
+          - service: script.turn_on
+            target:
+              entity_id: script.{{ lock_name }}_audit_event
+            data:
+              variables:
+                message: "Rejected invalid code update for slot {{ slot }} on lock.{{ lock_name }}"
     mode: single
 
   - alias: "{{ lock_name }}: Clear Lock Code {{ slot }}"
@@ -95,4 +208,110 @@ automation:
       - service: input_boolean.turn_off
         target:
           entity_id: input_boolean.{{ lock_name }}_lock_code_status_{{ slot }}
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.{{ lock_name }}_lock_code_onetime_{{ slot }}
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Cleared slot {{ slot }} for lock.{{ lock_name }}"
     mode: single
+
+{% if slot == 1 %}
+  - alias: "{{ lock_name }}: Consume One-Time PINs On Unlock"
+    trigger:
+      - platform: state
+        entity_id: lock.{{ lock_name }}
+        to: "unlocked"
+    action:
+{% for managed_slot in range(1, slot_count + 1) %}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.{{ lock_name }}_lock_code_onetime_{{ managed_slot }}
+                state: "on"
+              - condition: state
+                entity_id: input_boolean.{{ lock_name }}_lock_code_status_{{ managed_slot }}
+                state: "on"
+            sequence:
+              - service: zha.clear_lock_user_code
+                target:
+                  entity_id: lock.{{ lock_name }}
+                data:
+                  code_slot: "{{ managed_slot }}"
+              - service: input_text.set_value
+                data:
+                  entity_id: input_text.{{ lock_name }}_lock_code_{{ managed_slot }}
+                  value: ""
+              - service: input_boolean.turn_off
+                target:
+                  entity_id:
+                    - input_boolean.{{ lock_name }}_lock_code_status_{{ managed_slot }}
+                    - input_boolean.{{ lock_name }}_lock_code_onetime_{{ managed_slot }}
+              - service: script.turn_on
+                target:
+                  entity_id: script.{{ lock_name }}_audit_event
+                data:
+                  variables:
+                    message: "Consumed one-time PIN in slot {{ managed_slot }} after unlock on lock.{{ lock_name }}"
+{% endfor %}
+    mode: single
+
+  - alias: "{{ lock_name }}: Presence-Aware Slot Enforcement"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.{{ lock_name }}_anyone_home
+    condition:
+      - condition: state
+        entity_id: input_boolean.{{ lock_name }}_lock_presence_automation_enabled
+        state: "on"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.{{ lock_name }}_anyone_home
+                state: "off"
+            sequence:
+{% for managed_slot in range(1, slot_count + 1) %}
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: input_boolean.{{ lock_name }}_lock_code_presence_aware_{{ managed_slot }}
+                        state: "on"
+                    sequence:
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.{{ lock_name }}_lock_code_status_{{ managed_slot }}
+                      - service: script.turn_on
+                        target:
+                          entity_id: script.{{ lock_name }}_audit_event
+                        data:
+                          variables:
+                            message: "Presence automation disabled slot {{ managed_slot }} because nobody is home."
+{% endfor %}
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.{{ lock_name }}_anyone_home
+                state: "on"
+            sequence:
+{% for managed_slot in range(1, slot_count + 1) %}
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: input_boolean.{{ lock_name }}_lock_code_presence_aware_{{ managed_slot }}
+                        state: "on"
+                    sequence:
+                      - service: input_boolean.turn_on
+                        target:
+                          entity_id: input_boolean.{{ lock_name }}_lock_code_status_{{ managed_slot }}
+                      - service: script.turn_on
+                        target:
+                          entity_id: script.{{ lock_name }}_audit_event
+                        data:
+                          variables:
+                            message: "Presence automation enabled slot {{ managed_slot }} because someone is home."
+{% endfor %}
+    mode: single
+{% endif %}

@@ -24,6 +24,23 @@ views:
           - entity: lock.{{ lock_name }}
             name: Door Lock
 
+      - type: entities
+        title: Automation Controls
+        entities:
+          - entity: input_boolean.{{ lock_name }}_lock_notifications_enabled
+            name: Notifications
+          - entity: input_boolean.{{ lock_name }}_lock_presence_automation_enabled
+            name: Presence automation
+
+      - type: entities
+        title: Lock Activity Timeline
+        show_header_toggle: false
+        entities:
+{% for activity_index in range(1, activity_event_count + 1) %}
+          - entity: input_text.{{ lock_name }}_lock_activity_{{ activity_index }}
+            name: "{{ activity_index }}"
+{% endfor %}
+
   - path: code_slots
     title: Code Slots
     cards:

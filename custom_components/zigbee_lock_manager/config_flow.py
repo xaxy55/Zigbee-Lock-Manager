@@ -4,6 +4,12 @@ from homeassistant import config_entries
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from .const import (
+    CONF_ACTIVITY_EVENT_COUNT,
+    CONF_ENABLE_NOTIFICATIONS,
+    CONF_ENABLE_PRESENCE_AUTOMATION,
+    DEFAULT_ACTIVITY_EVENT_COUNT,
+    DEFAULT_ENABLE_NOTIFICATIONS,
+    DEFAULT_ENABLE_PRESENCE_AUTOMATION,
     DOMAIN,
     LOCK_PROFILE_GENERIC,
     LOCK_PROFILE_ID_LOCK_202_MULTI,
@@ -106,6 +112,18 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 "lock_profile",
                 default=self._detect_profile_for_lock_entity(lock_entities[0]),
             ): vol.In(LOCK_PROFILE_OPTIONS),
+            vol.Optional(
+                CONF_ENABLE_NOTIFICATIONS,
+                default=DEFAULT_ENABLE_NOTIFICATIONS,
+            ): bool,
+            vol.Optional(
+                CONF_ENABLE_PRESENCE_AUTOMATION,
+                default=DEFAULT_ENABLE_PRESENCE_AUTOMATION,
+            ): bool,
+            vol.Optional(
+                CONF_ACTIVITY_EVENT_COUNT,
+                default=DEFAULT_ACTIVITY_EVENT_COUNT,
+            ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
         })
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -149,6 +167,24 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
                 ),
             ),
         )
+        current_enable_notifications = self.config_entry.options.get(
+            CONF_ENABLE_NOTIFICATIONS,
+            self.config_entry.data.get(
+                CONF_ENABLE_NOTIFICATIONS, DEFAULT_ENABLE_NOTIFICATIONS
+            ),
+        )
+        current_enable_presence_automation = self.config_entry.options.get(
+            CONF_ENABLE_PRESENCE_AUTOMATION,
+            self.config_entry.data.get(
+                CONF_ENABLE_PRESENCE_AUTOMATION, DEFAULT_ENABLE_PRESENCE_AUTOMATION
+            ),
+        )
+        current_activity_event_count = self.config_entry.options.get(
+            CONF_ACTIVITY_EVENT_COUNT,
+            self.config_entry.data.get(
+                CONF_ACTIVITY_EVENT_COUNT, DEFAULT_ACTIVITY_EVENT_COUNT
+            ),
+        )
 
         schema = vol.Schema({
             vol.Required("slot_count", default=current_slot_count): vol.All(
@@ -157,6 +193,18 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional("lock_profile", default=current_lock_profile): vol.In(
                 LOCK_PROFILE_OPTIONS
             ),
+            vol.Optional(
+                CONF_ENABLE_NOTIFICATIONS,
+                default=current_enable_notifications,
+            ): bool,
+            vol.Optional(
+                CONF_ENABLE_PRESENCE_AUTOMATION,
+                default=current_enable_presence_automation,
+            ): bool,
+            vol.Optional(
+                CONF_ACTIVITY_EVENT_COUNT,
+                default=current_activity_event_count,
+            ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

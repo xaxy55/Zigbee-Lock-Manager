@@ -1,7 +1,15 @@
 import logging
 import asyncio
 from homeassistant.core import HomeAssistant
-from .const import LOCK_PROFILE_GENERIC
+from .const import (
+    CONF_ACTIVITY_EVENT_COUNT,
+    CONF_ENABLE_NOTIFICATIONS,
+    CONF_ENABLE_PRESENCE_AUTOMATION,
+    DEFAULT_ACTIVITY_EVENT_COUNT,
+    DEFAULT_ENABLE_NOTIFICATIONS,
+    DEFAULT_ENABLE_PRESENCE_AUTOMATION,
+    LOCK_PROFILE_GENERIC,
+)
 from .zha_manager import (
     create_helpers_and_automations,
     remove_helpers_and_automations,
@@ -29,12 +37,30 @@ async def async_setup_entry(hass, entry):
     slot_count = _entry_value(entry, "slot_count")
     lock_name = entry.data.get("lock_name")
     lock_profile = _entry_value(entry, "lock_profile", LOCK_PROFILE_GENERIC)
+    enable_notifications = _entry_value(
+        entry, CONF_ENABLE_NOTIFICATIONS, DEFAULT_ENABLE_NOTIFICATIONS
+    )
+    enable_presence_automation = _entry_value(
+        entry,
+        CONF_ENABLE_PRESENCE_AUTOMATION,
+        DEFAULT_ENABLE_PRESENCE_AUTOMATION,
+    )
+    activity_event_count = _entry_value(
+        entry, CONF_ACTIVITY_EVENT_COUNT, DEFAULT_ACTIVITY_EVENT_COUNT
+    )
 
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Step 1: Create the YAML-based helpers and automations
     await create_helpers_and_automations(
-        hass, slot_count, lock_name, entry, lock_profile=lock_profile
+        hass,
+        slot_count,
+        lock_name,
+        entry,
+        lock_profile=lock_profile,
+        enable_notifications=enable_notifications,
+        enable_presence_automation=enable_presence_automation,
+        activity_event_count=activity_event_count,
     )
 
     # Step 2: Reload automations and input helpers
@@ -62,7 +88,15 @@ async def async_setup_entry(hass, entry):
         await link_helpers_to_device(hass, entry, lock_name, slot, device)
 
     # Step 6: Create the dashboard YAML file
-    await create_dashboard_yaml(hass, slot_count, lock_name, lock_profile=lock_profile)
+    await create_dashboard_yaml(
+        hass,
+        slot_count,
+        lock_name,
+        lock_profile=lock_profile,
+        enable_notifications=enable_notifications,
+        enable_presence_automation=enable_presence_automation,
+        activity_event_count=activity_event_count,
+    )
 
     _LOGGER.info("Zigbee Lock Manager setup complete")
     return True
