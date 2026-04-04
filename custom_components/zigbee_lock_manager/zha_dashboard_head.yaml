@@ -51,6 +51,82 @@ views:
             entity: lock.{{ lock_name }}
             attribute: sound_volume
             name: Sound volume
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: keypad_operation_event_mask
+            name: Keypad operation event mask
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: rf_operation_event_mask
+            name: RF operation event mask
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: manual_operation_event_mask
+            name: Manual operation event mask
+{% endif %}
+
+{% if lock_profile == "id_lock_202_multi" and enable_id_lock_advanced_controls %}
+      - type: entities
+        title: ID Lock 202 Advanced Controls
+        entities:
+          - entity: input_select.{{ lock_name }}_id_lock_202_lock_mode
+            name: Lock mode
+          - entity: input_boolean.{{ lock_name }}_id_lock_202_relock_enabled
+            name: ReLock enabled
+          - entity: input_number.{{ lock_name }}_id_lock_202_audio_volume
+            name: Audio volume
+          - entity: input_boolean.{{ lock_name }}_id_lock_202_rfid_enabled
+            name: RFID enabled
+          - entity: input_boolean.{{ lock_name }}_id_lock_202_master_pin_mode
+            name: Master PIN unlock enabled
+          - entity: input_number.{{ lock_name }}_id_lock_202_battery_low_threshold
+            name: Battery low threshold
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Apply Mode
+            icon: mdi:lock-cog
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_id_lock_202_apply_lock_mode
+          - type: button
+            name: Apply ReLock
+            icon: mdi:lock-reset
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_id_lock_202_apply_relock
+          - type: button
+            name: Apply Audio
+            icon: mdi:volume-high
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_id_lock_202_apply_audio_volume
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Apply RFID
+            icon: mdi:card-bulleted
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_id_lock_202_apply_rfid
+          - type: button
+            name: Apply Master PIN
+            icon: mdi:key-change
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_id_lock_202_apply_master_pin_mode
 {% endif %}
 
       - type: entities

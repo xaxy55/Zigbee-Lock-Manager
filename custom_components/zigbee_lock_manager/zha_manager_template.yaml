@@ -41,6 +41,23 @@ input_boolean:
   {{ lock_name }}_lock_presence_automation_enabled:
     name: "Presence Automation Enabled"
     initial: {{ 'true' if enable_presence_automation else 'false' }}
+
+{% if lock_profile == "id_lock_202_multi" %}
+  {{ lock_name }}_id_lock_202_relock_enabled:
+    name: "ReLock Enabled"
+    initial: false
+    icon: mdi:lock-reset
+
+  {{ lock_name }}_id_lock_202_rfid_enabled:
+    name: "RFID Enabled"
+    initial: true
+    icon: mdi:card-bulleted
+
+  {{ lock_name }}_id_lock_202_master_pin_mode:
+    name: "Master PIN Unlock Enabled"
+    initial: true
+    icon: mdi:key-change
+{% endif %}
 {% endif %}
 
 input_button:
@@ -51,6 +68,62 @@ input_button:
   {{ lock_name }}_lock_code_clear_{{ slot }}:
     name: "Clear Code {{ slot }}"
     icon: mdi:trash-can-outline
+
+{% if slot == 1 and lock_profile == "id_lock_202_multi" %}
+
+  {{ lock_name }}_id_lock_202_apply_lock_mode:
+    name: "Apply Lock Mode"
+    icon: mdi:lock-cog
+
+  {{ lock_name }}_id_lock_202_apply_relock:
+    name: "Apply ReLock"
+    icon: mdi:lock-reset
+
+  {{ lock_name }}_id_lock_202_apply_audio_volume:
+    name: "Apply Audio Volume"
+    icon: mdi:volume-high
+
+  {{ lock_name }}_id_lock_202_apply_rfid:
+    name: "Apply RFID"
+    icon: mdi:card-bulleted
+
+  {{ lock_name }}_id_lock_202_apply_master_pin_mode:
+    name: "Apply Master PIN Mode"
+    icon: mdi:key-change
+{% endif %}
+
+{% if slot == 1 and lock_profile == "id_lock_202_multi" %}
+input_number:
+  {{ lock_name }}_id_lock_202_battery_low_threshold:
+    name: "Battery Low Threshold"
+    min: 5
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+    icon: mdi:battery-alert
+    initial: {{ battery_low_threshold }}
+
+  {{ lock_name }}_id_lock_202_audio_volume:
+    name: "Audio Volume"
+    min: 0
+    max: 5
+    step: 1
+    mode: slider
+    icon: mdi:volume-high
+    initial: 5
+
+input_select:
+  {{ lock_name }}_id_lock_202_lock_mode:
+    name: "Lock Mode"
+    options:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+    initial: "0"
+    icon: mdi:lock-cog
+{% endif %}
 
 {% if slot == 1 %}
 template:
@@ -349,4 +422,148 @@ automation:
                             message: "Presence automation enabled slot {{ managed_slot }} because someone is home."
 {% endfor %}
     mode: single
+
+{% if lock_profile == "id_lock_202_multi" %}
+  - alias: "{{ lock_name }}: ID Lock 202 Battery Low Alert"
+    trigger:
+      - platform: state
+        entity_id: lock.{{ lock_name }}
+    condition:
+      - condition: template
+        value_template: >-
+          {% set battery = state_attr('lock.{{ lock_name }}', 'battery_percentage') %}
+          {% set threshold = states('input_number.{{ lock_name }}_id_lock_202_battery_low_threshold') | int(30) %}
+          {{ battery is number and (battery | int) <= threshold }}
+    action:
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: >-
+              Low battery alert: lock.{{ lock_name }} is at
+              {{ '{{ state_attr("lock.' + lock_name + '", "battery_percentage") }}' }}%.
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.{{ lock_name }}_lock_notifications_enabled
+                state: "on"
+            sequence:
+              - service: persistent_notification.create
+                data:
+                  title: "Zigbee Lock Manager"
+                  message: >-
+                    Low battery for lock.{{ lock_name }}:
+                    {{ '{{ state_attr("lock.' + lock_name + '", "battery_percentage") }}' }}%
+                    (threshold:
+                    {{ '{{ states("input_number.' + lock_name + '_id_lock_202_battery_low_threshold") }}' }}%).
+    mode: single
+
+{% if enable_id_lock_advanced_controls %}
+  - alias: "{{ lock_name }}: Apply ID Lock 202 Lock Mode"
+    trigger:
+      - platform: state
+        entity_id: input_button.{{ lock_name }}_id_lock_202_apply_lock_mode
+    action:
+      - service: zha.set_zigbee_cluster_attribute
+        target:
+          entity_id: lock.{{ lock_name }}
+        data:
+          cluster_type: in
+          cluster_id: 257
+          attribute: 16388
+          value: "{{ '{{ states(\"input_select.' + lock_name + '_id_lock_202_lock_mode\") | int(0) }}' }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Applied ID Lock lock_mode using selected helper value."
+    mode: single
+
+  - alias: "{{ lock_name }}: Apply ID Lock 202 ReLock"
+    trigger:
+      - platform: state
+        entity_id: input_button.{{ lock_name }}_id_lock_202_apply_relock
+    action:
+      - service: zha.set_zigbee_cluster_attribute
+        target:
+          entity_id: lock.{{ lock_name }}
+        data:
+          cluster_type: in
+          cluster_id: 257
+          attribute: 16389
+          value: "{{ '{{ 1 if is_state(\"input_boolean.' + lock_name + '_id_lock_202_relock_enabled\", \"on\") else 0 }}' }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Applied ID Lock relock_enabled using selected helper value."
+    mode: single
+
+  - alias: "{{ lock_name }}: Apply ID Lock 202 Audio Volume"
+    trigger:
+      - platform: state
+        entity_id: input_button.{{ lock_name }}_id_lock_202_apply_audio_volume
+    action:
+      - service: zha.set_zigbee_cluster_attribute
+        target:
+          entity_id: lock.{{ lock_name }}
+        data:
+          cluster_type: in
+          cluster_id: 257
+          attribute: 16390
+          value: "{{ '{{ states(\"input_number.' + lock_name + '_id_lock_202_audio_volume\") | int(5) }}' }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Applied ID Lock audio_volume using selected helper value."
+    mode: single
+
+  - alias: "{{ lock_name }}: Apply ID Lock 202 RFID Enabled"
+    trigger:
+      - platform: state
+        entity_id: input_button.{{ lock_name }}_id_lock_202_apply_rfid
+    action:
+      - service: zha.set_zigbee_cluster_attribute
+        target:
+          entity_id: lock.{{ lock_name }}
+        data:
+          cluster_type: in
+          cluster_id: 257
+          attribute: 16385
+          value: "{{ '{{ 1 if is_state(\"input_boolean.' + lock_name + '_id_lock_202_rfid_enabled\", \"on\") else 0 }}' }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Applied ID Lock rfid_enabled using selected helper value."
+    mode: single
+
+  - alias: "{{ lock_name }}: Apply ID Lock 202 Master PIN Mode"
+    trigger:
+      - platform: state
+        entity_id: input_button.{{ lock_name }}_id_lock_202_apply_master_pin_mode
+    action:
+      - service: zha.set_zigbee_cluster_attribute
+        target:
+          entity_id: lock.{{ lock_name }}
+        data:
+          cluster_type: in
+          cluster_id: 257
+          attribute: 16384
+          value: "{{ '{{ 1 if is_state(\"input_boolean.' + lock_name + '_id_lock_202_master_pin_mode\", \"on\") else 0 }}' }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: "Applied ID Lock master_pin_mode using selected helper value."
+    mode: single
+{% endif %}
+{% endif %}
 {% endif %}

@@ -4,9 +4,13 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from .const import (
     CONF_ACTIVITY_EVENT_COUNT,
+    CONF_BATTERY_LOW_THRESHOLD,
+    CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
     CONF_ENABLE_NOTIFICATIONS,
     CONF_ENABLE_PRESENCE_AUTOMATION,
     DEFAULT_ACTIVITY_EVENT_COUNT,
+    DEFAULT_BATTERY_LOW_THRESHOLD,
+    DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
     DEFAULT_ENABLE_NOTIFICATIONS,
     DEFAULT_ENABLE_PRESENCE_AUTOMATION,
     DOMAIN,
@@ -19,6 +23,7 @@ from .zha_manager import (
     create_dashboard_yaml  # Import the dashboard creation function
 )
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,6 +87,16 @@ async def async_setup_entry(hass, entry):
         CONF_ENABLE_PRESENCE_AUTOMATION,
         DEFAULT_ENABLE_PRESENCE_AUTOMATION,
     )
+    enable_id_lock_advanced_controls = _entry_value(
+        entry,
+        CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+        DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+    )
+    battery_low_threshold = _entry_value(
+        entry,
+        CONF_BATTERY_LOW_THRESHOLD,
+        DEFAULT_BATTERY_LOW_THRESHOLD,
+    )
     activity_event_count = _entry_value(
         entry, CONF_ACTIVITY_EVENT_COUNT, DEFAULT_ACTIVITY_EVENT_COUNT
     )
@@ -97,32 +112,53 @@ async def async_setup_entry(hass, entry):
         lock_profile=lock_profile,
         enable_notifications=enable_notifications,
         enable_presence_automation=enable_presence_automation,
+        enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+        battery_low_threshold=battery_low_threshold,
         activity_event_count=activity_event_count,
     )
 
-    # Step 2: Reload automations and input helpers
-    await hass.services.async_call("automation", "reload")
-    await hass.services.async_call("input_boolean", "reload")
-    await hass.services.async_call("input_text", "reload")
-    await hass.services.async_call("input_button", "reload")
+    # Step 2: Reload automations and input helpers when services are available.
+    services_to_reload = (
+        ("automation", "reload"),
+        ("input_boolean", "reload"),
+        ("input_text", "reload"),
+        ("input_button", "reload"),
+        ("input_number", "reload"),
+        ("input_select", "reload"),
+    )
+    for domain, service in services_to_reload:
+        if hass.services.has_service(domain, service):
+            await hass.services.async_call(domain, service)
+        else:
+            _LOGGER.warning("%s.%s service not available at this time", domain, service)
 
     # Step 3: Introduce a small delay to ensure entities are fully loaded
     await asyncio.sleep(2)  # Adjust the sleep duration if necessary
 
-    # Step 4: Register a device for the lock manager
+    # Step 4: Resolve target device for helper linking.
+    # Prefer the real lock device so users see lock controls and helpers together.
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(entry.domain, lock_name)},
-        manufacturer="YourManufacturer",
-        name=f"Zigbee Lock Manager ({lock_name})",
-        model="Zigbee Lock",
-        sw_version="1.0",
-    )
+    entity_registry = er.async_get(hass)
+    lock_entity_id = f"lock.{lock_name}"
+    lock_entity_entry = entity_registry.async_get(lock_entity_id)
+    if lock_entity_entry and lock_entity_entry.device_id:
+        device = device_registry.async_get(lock_entity_entry.device_id)
+    else:
+        device = None
+
+    if device is None:
+        device = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(entry.domain, lock_name)},
+            manufacturer="YourManufacturer",
+            name=f"Zigbee Lock Manager ({lock_name})",
+            model="Zigbee Lock",
+            sw_version="1.0",
+        )
 
     # Step 5: Link YAML-created helpers to the device
     for slot in range(1, slot_count + 1):
-        await link_helpers_to_device(hass, entry, lock_name, slot, device)
+        await link_helpers_to_device(hass, entry, lock_name, slot, device.id)
 
     # Step 6: Create the dashboard YAML file
     await create_dashboard_yaml(
@@ -132,6 +168,8 @@ async def async_setup_entry(hass, entry):
         lock_profile=lock_profile,
         enable_notifications=enable_notifications,
         enable_presence_automation=enable_presence_automation,
+        enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+        battery_low_threshold=battery_low_threshold,
         activity_event_count=activity_event_count,
     )
 

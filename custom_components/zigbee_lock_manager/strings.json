@@ -10,14 +10,18 @@
           "lock_profile": "Lock profile",
           "enable_notifications": "Enable notifications",
           "enable_presence_automation": "Enable presence-aware automations",
-          "activity_event_count": "Timeline event rows"
+          "activity_event_count": "Timeline event rows",
+          "enable_id_lock_advanced_controls": "Enable advanced ID Lock controls",
+          "battery_low_threshold": "Battery low threshold (%)"
         },
         "data_description": {
           "slot_count": "How many PIN code slots to create (1–100).",
           "lock_profile": "Choose the profile that matches your lock model for best compatibility. For ID Lock 202 Multi use: Add unit by inserting module in Remote Control slot (with batteries removed) and start Add unit on hub. Remove: [Master PIN] * 9 * 0. Manual sync: [Master PIN] * 9 * 1.",
           "enable_notifications": "When enabled, automation events create persistent notifications.",
           "enable_presence_automation": "Create automations that toggle selected slots based on occupancy.",
-          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10)."
+          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10).",
+          "enable_id_lock_advanced_controls": "Opt-in. Creates controls for lock_mode, relock_enabled, audio_volume, rfid_enabled, and master_pin_mode via ZHA manufacturer attributes.",
+          "battery_low_threshold": "Low battery threshold (5–100%) used by ID Lock battery alert automation."
         }
       }
     },
@@ -40,14 +44,18 @@
           "lock_profile": "Lock profile",
           "enable_notifications": "Enable notifications",
           "enable_presence_automation": "Enable presence-aware automations",
-          "activity_event_count": "Timeline event rows"
+          "activity_event_count": "Timeline event rows",
+          "enable_id_lock_advanced_controls": "Enable advanced ID Lock controls",
+          "battery_low_threshold": "Battery low threshold (%)"
         },
         "data_description": {
           "slot_count": "How many PIN code slots to create (1–100).",
           "lock_profile": "Choose the profile that matches your lock model for best compatibility. For ID Lock 202 Multi use: Add unit by inserting module in Remote Control slot (with batteries removed) and start Add unit on hub. Remove: [Master PIN] * 9 * 0. Manual sync: [Master PIN] * 9 * 1.",
           "enable_notifications": "When enabled, automation events create persistent notifications.",
           "enable_presence_automation": "Create automations that toggle selected slots based on occupancy.",
-          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10)."
+          "activity_event_count": "How many recent audit events to show in the dashboard timeline (3–10).",
+          "enable_id_lock_advanced_controls": "Opt-in. Creates controls for lock_mode, relock_enabled, audio_volume, rfid_enabled, and master_pin_mode via ZHA manufacturer attributes.",
+          "battery_low_threshold": "Low battery threshold (5–100%) used by ID Lock battery alert automation."
         }
       }
     }

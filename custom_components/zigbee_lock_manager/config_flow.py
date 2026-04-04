@@ -5,9 +5,13 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_ACTIVITY_EVENT_COUNT,
+    CONF_BATTERY_LOW_THRESHOLD,
+    CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
     CONF_ENABLE_NOTIFICATIONS,
     CONF_ENABLE_PRESENCE_AUTOMATION,
     DEFAULT_ACTIVITY_EVENT_COUNT,
+    DEFAULT_BATTERY_LOW_THRESHOLD,
+    DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
     DEFAULT_ENABLE_NOTIFICATIONS,
     DEFAULT_ENABLE_PRESENCE_AUTOMATION,
     DOMAIN,
@@ -146,6 +150,14 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_ACTIVITY_EVENT_COUNT,
                 default=DEFAULT_ACTIVITY_EVENT_COUNT,
             ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
+            vol.Optional(
+                CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                default=DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+            ): bool,
+            vol.Optional(
+                CONF_BATTERY_LOW_THRESHOLD,
+                default=DEFAULT_BATTERY_LOW_THRESHOLD,
+            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=100)),
         })
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -207,6 +219,20 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_ACTIVITY_EVENT_COUNT, DEFAULT_ACTIVITY_EVENT_COUNT
             ),
         )
+        current_enable_id_lock_advanced_controls = self.config_entry.options.get(
+            CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+            self.config_entry.data.get(
+                CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+            ),
+        )
+        current_battery_low_threshold = self.config_entry.options.get(
+            CONF_BATTERY_LOW_THRESHOLD,
+            self.config_entry.data.get(
+                CONF_BATTERY_LOW_THRESHOLD,
+                DEFAULT_BATTERY_LOW_THRESHOLD,
+            ),
+        )
 
         schema = vol.Schema({
             vol.Required("slot_count", default=current_slot_count): vol.All(
@@ -227,6 +253,14 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_ACTIVITY_EVENT_COUNT,
                 default=current_activity_event_count,
             ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
+            vol.Optional(
+                CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                default=current_enable_id_lock_advanced_controls,
+            ): bool,
+            vol.Optional(
+                CONF_BATTERY_LOW_THRESHOLD,
+                default=current_battery_low_threshold,
+            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=100)),
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

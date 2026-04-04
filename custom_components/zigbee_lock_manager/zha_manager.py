@@ -78,6 +78,8 @@ async def create_helpers_and_automations(
     lock_profile: str = "generic",
     enable_notifications: bool = False,
     enable_presence_automation: bool = False,
+    enable_id_lock_advanced_controls: bool = False,
+    battery_low_threshold: int = 30,
     activity_event_count: int = DEFAULT_ACTIVITY_EVENT_COUNT,
 ):
     """Create helpers and automations."""
@@ -133,6 +135,8 @@ async def create_helpers_and_automations(
             invalid_code_message=render_settings["invalid_code_message"],
             enable_notifications=enable_notifications,
             enable_presence_automation=enable_presence_automation,
+            enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+            battery_low_threshold=battery_low_threshold,
             activity_event_count=activity_event_count,
         )
 
@@ -163,11 +167,21 @@ async def create_helpers_and_automations(
     else:
         _LOGGER.warning("input_button.reload service not available at this time")
 
+    if hass.services.has_service("input_number", "reload"):
+        await hass.services.async_call("input_number", "reload")
+    else:
+        _LOGGER.warning("input_number.reload service not available at this time")
+
+    if hass.services.has_service("input_select", "reload"):
+        await hass.services.async_call("input_select", "reload")
+    else:
+        _LOGGER.warning("input_select.reload service not available at this time")
+
     # Wait for 2 seconds to ensure entities are registered
     await asyncio.sleep(1)
 
 
-async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
+async def link_helpers_to_device(hass, config_entry, lock_name, slot, device_id):
     """Link YAML-created helpers to a device by updating their device_id in the entity registry."""
     entity_registry = er.async_get(hass)
 
@@ -196,23 +210,35 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
         {"entity_id": entity_id_input_button_clear, "domain": "input_button"},
     ]
 
-    # Loop through each entity, check if it exists, and link it to the device
-    for entity in entities:
-        _LOGGER.debug(f"Looking for entity: {entity['entity_id']}")
-        # Try to find the entity in the entity registry
-        entity_entry = entity_registry.async_get(entity["entity_id"])
+    # Entity registration can lag slightly after helper reloads, so retry a few times.
+    pending_entity_ids = [entity["entity_id"] for entity in entities]
+    for attempt in range(1, 4):
+        still_pending = []
+        for entity_id in pending_entity_ids:
+            _LOGGER.debug("Looking for entity: %s", entity_id)
+            entity_entry = entity_registry.async_get(entity_id)
+            if entity_entry:
+                entity_registry.async_update_entity(
+                    entity_entry.entity_id,
+                    device_id=device_id,
+                )
+                _LOGGER.info("Linked %s to device %s", entity_id, device_id)
+            else:
+                still_pending.append(entity_id)
 
-        if entity_entry:
-            _LOGGER.info(f"Entity found: {entity['entity_id']} - linking to device {device.id}")
-            # Entity exists, now update it to link to the device
-            entity_registry.async_update_entity(
-                entity_entry.entity_id,
-                device_id=device.id,  # Link to the device
-                config_entry_id=config_entry.entry_id  # Associate with the config entry
-            )
-            _LOGGER.info(f"Linked {entity['entity_id']} to device {device.id}")
-        else:
-            _LOGGER.warning(f"Entity {entity['entity_id']} not found in entity registry.")
+        if not still_pending:
+            break
+
+        pending_entity_ids = still_pending
+        _LOGGER.debug(
+            "Waiting for %s helper entities to register (attempt %s/3)",
+            len(pending_entity_ids),
+            attempt,
+        )
+        await asyncio.sleep(1)
+
+    for entity_id in pending_entity_ids:
+        _LOGGER.warning("Entity %s not found in entity registry.", entity_id)
 
 # New function to create the dashboard YAML
 async def create_dashboard_yaml(
@@ -222,6 +248,8 @@ async def create_dashboard_yaml(
     lock_profile: str = "generic",
     enable_notifications: bool = False,
     enable_presence_automation: bool = False,
+    enable_id_lock_advanced_controls: bool = False,
+    battery_low_threshold: int = 30,
     activity_event_count: int = DEFAULT_ACTIVITY_EVENT_COUNT,
 ):
     """Generate a dashboard YAML file."""
@@ -240,6 +268,8 @@ async def create_dashboard_yaml(
             lock_profile=lock_profile,
             enable_notifications=enable_notifications,
             enable_presence_automation=enable_presence_automation,
+            enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+            battery_low_threshold=battery_low_threshold,
             activity_event_count=activity_event_count,
         )
 
