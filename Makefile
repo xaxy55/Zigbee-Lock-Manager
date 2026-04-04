@@ -121,6 +121,8 @@ print(''); \
 	@echo "$(BOLD)$(YELLOW)Version bumped:$(RESET) $(CURRENT_VERSION) → $(BOLD)$(NEW_VERSION)$(RESET)"
 	@git add $(MANIFEST)
 	@git commit -m "chore: bump version to $(NEW_VERSION)"
+	@git push
+	@echo "$(GREEN)Pushed version bump commit.$(RESET)"
 
 .PHONY: bump-patch
 bump-patch:
