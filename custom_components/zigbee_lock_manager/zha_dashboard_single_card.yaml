@@ -1,0 +1,151 @@
+type: vertical-stack
+cards:
+  - type: markdown
+    title: Lock Manager
+    content: >-
+      **Lock:** `lock.{{ lock_name }}`
+
+      {% if lock_profile == "id_lock_202_multi" %}
+      **Profile:** ID Lock 202 Multi  
+      **PIN rules:** 4-10 digits
+      {% else %}
+      **Profile:** Generic ZHA Lock  
+      **Code rules:** 1-10 characters
+      {% endif %}
+
+      Manage slot PINs below and use update/clear actions for each slot.
+
+  - type: entities
+    title: Lock Status
+    entities:
+      - entity: lock.{{ lock_name }}
+        name: Door Lock
+
+{% if lock_profile == "id_lock_202_multi" %}
+  - type: entities
+    title: ID Lock 202 Diagnostics
+    entities:
+      - type: attribute
+        entity: lock.{{ lock_name }}
+        attribute: lock_state
+        name: Lock state
+      - type: attribute
+        entity: lock.{{ lock_name }}
+        attribute: door_state
+        name: Door state
+      - type: attribute
+        entity: lock.{{ lock_name }}
+        attribute: battery_percentage
+        name: Battery percentage
+      - type: attribute
+        entity: lock.{{ lock_name }}
+        attribute: sound_volume
+        name: Sound volume
+{% endif %}
+
+{% if lock_profile == "id_lock_202_multi" and enable_id_lock_advanced_controls %}
+  - type: entities
+    title: ID Lock 202 Advanced Controls
+    entities:
+      - entity: input_select.{{ lock_name }}_id_lock_202_lock_mode
+        name: Lock mode
+      - entity: input_boolean.{{ lock_name }}_id_lock_202_relock_enabled
+        name: ReLock enabled
+      - entity: input_number.{{ lock_name }}_id_lock_202_audio_volume
+        name: Audio volume
+      - entity: input_boolean.{{ lock_name }}_id_lock_202_rfid_enabled
+        name: RFID enabled
+      - entity: input_boolean.{{ lock_name }}_id_lock_202_master_pin_mode
+        name: Master PIN unlock enabled
+      - entity: input_number.{{ lock_name }}_id_lock_202_battery_low_threshold
+        name: Battery low threshold
+
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Apply Mode
+        icon: mdi:lock-cog
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.{{ lock_name }}_id_lock_202_apply_lock_mode
+      - type: button
+        name: Apply ReLock
+        icon: mdi:lock-reset
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.{{ lock_name }}_id_lock_202_apply_relock
+      - type: button
+        name: Apply Audio
+        icon: mdi:volume-high
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.{{ lock_name }}_id_lock_202_apply_audio_volume
+{% endif %}
+
+  - type: entities
+    title: Automation Controls
+    entities:
+      - entity: input_boolean.{{ lock_name }}_lock_notifications_enabled
+        name: Notifications
+      - entity: input_boolean.{{ lock_name }}_lock_presence_automation_enabled
+        name: Presence automation
+
+  - type: entities
+    title: Lock Activity Timeline
+    show_header_toggle: false
+    entities:
+{% for activity_index in range(1, activity_event_count + 1) %}
+      - entity: input_text.{{ lock_name }}_lock_activity_{{ activity_index }}
+        name: "{{ activity_index }}"
+{% endfor %}
+
+{% for slot in range(1, slot_count + 1) %}
+  - type: vertical-stack
+    cards:
+      - type: entities
+        title: "Slot {{ slot }}"
+        entities:
+          - entity: input_text.{{ lock_name }}_lock_user_{{ slot }}
+            name: User Name
+          - entity: input_text.{{ lock_name }}_lock_code_{{ slot }}
+            name: >-
+              {% if lock_profile == "id_lock_202_multi" %}
+              PIN
+              {% else %}
+              Code
+              {% endif %}
+          - entity: input_boolean.{{ lock_name }}_lock_code_status_{{ slot }}
+            name: Slot Enabled
+            state_color: true
+          - entity: input_boolean.{{ lock_name }}_lock_code_onetime_{{ slot }}
+            name: One-time PIN
+            state_color: true
+          - entity: input_boolean.{{ lock_name }}_lock_code_presence_aware_{{ slot }}
+            name: Presence-aware
+            state_color: true
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Update Lock
+            icon: mdi:upload
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_lock_code_update_{{ slot }}
+          - type: button
+            name: Clear Slot
+            icon: mdi:trash-can-outline
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.{{ lock_name }}_lock_code_clear_{{ slot }}
+{% endfor %}

@@ -20,7 +20,8 @@ from .zha_manager import (
     create_helpers_and_automations,
     remove_helpers_and_automations,
     link_all_generated_helpers_to_device,
-    create_dashboard_yaml  # Import the dashboard creation function
+    create_dashboard_card_yaml,
+    create_dashboard_yaml,
 )
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -173,6 +174,18 @@ async def async_setup_entry(hass, entry):
 
     # Step 6: Create the dashboard YAML file
     await create_dashboard_yaml(
+        hass,
+        slot_count,
+        lock_name,
+        lock_profile=lock_profile,
+        enable_notifications=enable_notifications,
+        enable_presence_automation=enable_presence_automation,
+        enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+        battery_low_threshold=battery_low_threshold,
+        activity_event_count=activity_event_count,
+    )
+
+    await create_dashboard_card_yaml(
         hass,
         slot_count,
         lock_name,

@@ -103,11 +103,17 @@ If you already have an existing dashboard from an earlier release, regenerate th
 ## Dashboard creation
 *You will need access to your config directory and a file editor.  e.g. [VSC](https://github.com/hassio-addons/addon-vscode) or something else. <br>
 <br>
-Copy the YAML from: <br>
+Classic full dashboard YAML (raw dashboard config): <br>
 ```YAML
 config/packages/zigbee_lock_manager/zigbee_lock_manager_dashboard
 ```
 Create a new dashboard, edit the raw config (three dots after enabling edit), and paste in the YAML from your clipboard.
+
+Modern dashboard card YAML (Add Card -> Manual): <br>
+```YAML
+config/packages/zigbee_lock_manager/zigbee_lock_manager_dashboard_card
+```
+Copy this YAML and paste it into a Manual card in your existing HA dashboard.
 Done.
 
 

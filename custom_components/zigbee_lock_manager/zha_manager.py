@@ -17,6 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PACKAGE_DIR = "packages/zigbee_lock_manager"
 DASHBOARD_FILE = "zigbee_lock_manager_dashboard"  # Output file for the dashboard YAML
+DASHBOARD_CARD_FILE = "zigbee_lock_manager_dashboard_card"
 
 
 def profile_render_settings(lock_profile: str) -> dict[str, str | int]:
@@ -334,6 +335,40 @@ async def create_dashboard_yaml(
 
     _LOGGER.info(f"Created dashboard YAML for {slot_count} slots at {dashboard_file_path}")
 
+
+async def create_dashboard_card_yaml(
+    hass: HomeAssistant,
+    slot_count: int,
+    lock_name: str,
+    lock_profile: str = "generic",
+    enable_notifications: bool = False,
+    enable_presence_automation: bool = False,
+    enable_id_lock_advanced_controls: bool = False,
+    battery_low_threshold: int = 30,
+    activity_event_count: int = DEFAULT_ACTIVITY_EVENT_COUNT,
+):
+    """Generate a single Lovelace card YAML for modern dashboard add-card flow."""
+    package_path = hass.config.path(PACKAGE_DIR)
+    dashboard_card_template = await load_template("zha_dashboard_single_card.yaml")
+    dashboard_card = jinja2.Template(dashboard_card_template)
+
+    dashboard_card_file_path = _safe_path_within(package_path, DASHBOARD_CARD_FILE)
+    card_content = dashboard_card.render(
+        slot_count=slot_count,
+        lock_name=lock_name,
+        lock_profile=lock_profile,
+        enable_notifications=enable_notifications,
+        enable_presence_automation=enable_presence_automation,
+        enable_id_lock_advanced_controls=enable_id_lock_advanced_controls,
+        battery_low_threshold=battery_low_threshold,
+        activity_event_count=activity_event_count,
+    )
+
+    async with aiofiles.open(dashboard_card_file_path, 'w') as dashboard_card_file:
+        await dashboard_card_file.write(card_content)
+
+    _LOGGER.info("Created dashboard card YAML at %s", dashboard_card_file_path)
+
 # Remove helpers and automations
 async def remove_helpers_and_automations(hass, lock_name, slot_count):
     """Remove helpers and automations for lock manager."""
@@ -364,6 +399,10 @@ async def remove_helpers_and_automations(hass, lock_name, slot_count):
         dashboard_file_path = _safe_path_within(package_path, DASHBOARD_FILE)
         if os.path.isfile(dashboard_file_path):
             os.remove(dashboard_file_path)
+
+        dashboard_card_file_path = _safe_path_within(package_path, DASHBOARD_CARD_FILE)
+        if os.path.isfile(dashboard_card_file_path):
+            os.remove(dashboard_card_file_path)
 
         if not os.listdir(package_path):
             await hass.async_add_executor_job(shutil.rmtree, package_path)
