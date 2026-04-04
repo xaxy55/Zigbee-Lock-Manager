@@ -12,11 +12,25 @@ from homeassistant.helpers import device_registry as dr
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _entry_value(entry, key, default=None):
+    """Return option value when present, otherwise fall back to entry data."""
+    if key in entry.options:
+        return entry.options.get(key)
+    return entry.data.get(key, default)
+
+
+async def _async_options_updated(hass: HomeAssistant, entry):
+    """Reload entry when options are updated."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
 async def async_setup_entry(hass, entry):
     """Set up Zigbee Lock Manager from a config entry."""
-    slot_count = entry.data.get("slot_count")
+    slot_count = _entry_value(entry, "slot_count")
     lock_name = entry.data.get("lock_name")
-    lock_profile = entry.data.get("lock_profile", LOCK_PROFILE_GENERIC)
+    lock_profile = _entry_value(entry, "lock_profile", LOCK_PROFILE_GENERIC)
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Step 1: Create the YAML-based helpers and automations
     await create_helpers_and_automations(
@@ -59,7 +73,11 @@ async def async_unload_entry(hass: HomeAssistant, entry):
     _LOGGER.debug("Unloading Zigbee Lock Manager.")
 
     # Remove helpers and automations
-    await remove_helpers_and_automations(hass, entry.data.get("lock_name"), entry.data.get("slot_count"))
+    await remove_helpers_and_automations(
+        hass,
+        entry.data.get("lock_name"),
+        _entry_value(entry, "slot_count"),
+    )
 
     _LOGGER.info("Zigbee Lock Manager unloaded.")
     return True

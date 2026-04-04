@@ -87,6 +87,15 @@ async def create_helpers_and_automations(
 
     entity_registry = er.async_get(hass)
 
+    # Remove previously generated slot YAML files for this lock so option
+    # changes (for example, lower slot_count) don't leave stale automations.
+    lock_file_prefix = f"{lock_name.replace('.', '_')}_slot_"
+    for filename in os.listdir(package_path):
+        if filename.startswith(lock_file_prefix) and filename.endswith(".yaml"):
+            stale_file_path = _safe_path_within(package_path, filename)
+            os.remove(stale_file_path)
+            _LOGGER.debug("Removed stale slot YAML: %s", stale_file_path)
+
     # Generate a separate YAML file for each slot
     for slot in range(1, slot_count + 1):
         yaml_file_path = _safe_path_within(
