@@ -1,12 +1,16 @@
 import re
+from collections.abc import Mapping
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from .const import (
+    CAP_SUPPORTS_BATTERY_PERCENTAGE,
+    CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS,
     CONF_ACTIVITY_EVENT_COUNT,
     CONF_BATTERY_LOW_THRESHOLD,
     CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+    CONF_LOCK_CAPABILITIES,
     CONF_ENABLE_NOTIFICATIONS,
     CONF_ENABLE_PRESENCE_AUTOMATION,
     DEFAULT_ACTIVITY_EVENT_COUNT,
@@ -28,6 +32,12 @@ _LOGGER = logging.getLogger(__name__)
 # Permitted characters for a lock object_id derived from a HA entity ID.
 # HA restricts object IDs to lowercase letters, digits, underscores, and hyphens.
 _SAFE_NAME_RE = re.compile(r'^[a-z0-9_\-]+$')
+_ID_LOCK_ADVANCED_PROBE_ATTRIBUTES = {
+    "sound_volume",
+    "keypad_operation_event_mask",
+    "rf_operation_event_mask",
+    "manual_operation_event_mask",
+}
 
 
 def infer_lock_profile(manufacturer: str | None, model: str | None) -> str:
@@ -41,6 +51,32 @@ def infer_lock_profile(manufacturer: str | None, model: str | None) -> str:
         return LOCK_PROFILE_ID_LOCK_202_MULTI
 
     return LOCK_PROFILE_GENERIC
+
+
+def infer_lock_capabilities(
+    lock_profile: str,
+    attributes: Mapping[str, object] | None,
+    has_cluster_write_service: bool,
+) -> dict[str, bool]:
+    """Infer lock capabilities from profile and available state attributes."""
+    is_id_lock_202 = lock_profile == LOCK_PROFILE_ID_LOCK_202_MULTI
+    attr_keys = set((attributes or {}).keys())
+    has_probe_data = bool(attr_keys)
+
+    supports_battery = (
+        "battery_percentage" in attr_keys if has_probe_data else is_id_lock_202
+    )
+    supports_advanced_probe = bool(attr_keys & _ID_LOCK_ADVANCED_PROBE_ATTRIBUTES)
+    supports_advanced_controls = (
+        is_id_lock_202
+        and has_cluster_write_service
+        and (supports_advanced_probe or not has_probe_data)
+    )
+
+    return {
+        CAP_SUPPORTS_BATTERY_PERCENTAGE: supports_battery,
+        CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS: supports_advanced_controls,
+    }
 
 class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Zigbee Lock Manager."""
@@ -61,6 +97,26 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return LOCK_PROFILE_GENERIC
 
         return infer_lock_profile(device.manufacturer, device.model)
+
+    def _discover_capabilities_for_lock_entity(
+        self,
+        lock_entity_id: str,
+        lock_profile: str,
+    ) -> dict[str, bool]:
+        """Probe lock capabilities from entity attributes and service availability."""
+        lock_state = self.hass.states.get(lock_entity_id)
+        return infer_lock_capabilities(
+            lock_profile=lock_profile,
+            attributes=lock_state.attributes if lock_state else None,
+            has_cluster_write_service=self.hass.services.has_service(
+                "zha", "set_zigbee_cluster_attribute"
+            ),
+        )
+
+    @staticmethod
+    def _is_capability_supported(capabilities: Mapping[str, bool], capability: str) -> bool:
+        """Return True when a capability is supported."""
+        return bool(capabilities.get(capability, False))
 
     @staticmethod
     def async_get_options_flow(config_entry):
@@ -97,6 +153,13 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.warning("No locks found during config flow")
             return self.async_abort(reason="no_locks")
 
+        default_lock_entity = lock_entities[0]
+        detected_profile = self._detect_profile_for_lock_entity(default_lock_entity)
+        detected_capabilities = self._discover_capabilities_for_lock_entity(
+            default_lock_entity,
+            detected_profile,
+        )
+
         if user_input is not None:
             # Extract only the part after "lock." from the lock entity ID
             full_lock_entity_id = user_input["lock_name"]
@@ -114,6 +177,25 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         full_lock_entity_id
                     )
 
+                selected_profile = user_input.get("lock_profile", LOCK_PROFILE_GENERIC)
+                capabilities = self._discover_capabilities_for_lock_entity(
+                    full_lock_entity_id,
+                    selected_profile,
+                )
+                user_input[CONF_LOCK_CAPABILITIES] = capabilities
+
+                if not self._is_capability_supported(
+                    capabilities,
+                    CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS,
+                ):
+                    user_input[CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS] = False
+
+                if not self._is_capability_supported(
+                    capabilities,
+                    CAP_SUPPORTS_BATTERY_PERCENTAGE,
+                ):
+                    user_input.pop(CONF_BATTERY_LOW_THRESHOLD, None)
+
                 # Store the processed lock_name instead of the full entity ID
                 user_input["lock_name"] = lock_name
 
@@ -129,14 +211,14 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Define the form schema.
         # slot_count is bounded to prevent DoS via mass file creation (OWASP A05).
-        schema = vol.Schema({
+        schema_fields: dict = {
             vol.Required("slot_count", default=1): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=100)
             ),
-            vol.Required("lock_name", default=lock_entities[0]): vol.In(lock_entities),
+            vol.Required("lock_name", default=default_lock_entity): vol.In(lock_entities),
             vol.Optional(
                 "lock_profile",
-                default=self._detect_profile_for_lock_entity(lock_entities[0]),
+                default=detected_profile,
             ): vol.In(LOCK_PROFILE_OPTIONS),
             vol.Optional(
                 CONF_ENABLE_NOTIFICATIONS,
@@ -150,15 +232,31 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_ACTIVITY_EVENT_COUNT,
                 default=DEFAULT_ACTIVITY_EVENT_COUNT,
             ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
-            vol.Optional(
-                CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
-                default=DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
-            ): bool,
-            vol.Optional(
-                CONF_BATTERY_LOW_THRESHOLD,
-                default=DEFAULT_BATTERY_LOW_THRESHOLD,
-            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=100)),
-        })
+        }
+
+        if self._is_capability_supported(
+            detected_capabilities,
+            CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS,
+        ):
+            schema_fields[
+                vol.Optional(
+                    CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                    default=DEFAULT_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                )
+            ] = bool
+
+        if self._is_capability_supported(
+            detected_capabilities,
+            CAP_SUPPORTS_BATTERY_PERCENTAGE,
+        ):
+            schema_fields[
+                vol.Optional(
+                    CONF_BATTERY_LOW_THRESHOLD,
+                    default=DEFAULT_BATTERY_LOW_THRESHOLD,
+                )
+            ] = vol.All(vol.Coerce(int), vol.Range(min=5, max=100))
+
+        schema = vol.Schema(schema_fields)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
@@ -184,11 +282,28 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
 
         return infer_lock_profile(device.manufacturer, device.model)
 
+    def _discover_capabilities_for_lock_entity(
+        self,
+        lock_entity_id: str,
+        lock_profile: str,
+    ) -> dict[str, bool]:
+        """Probe lock capabilities from entity attributes and service availability."""
+        lock_state = self.hass.states.get(lock_entity_id)
+        return infer_lock_capabilities(
+            lock_profile=lock_profile,
+            attributes=lock_state.attributes if lock_state else None,
+            has_cluster_write_service=self.hass.services.has_service(
+                "zha", "set_zigbee_cluster_attribute"
+            ),
+        )
+
+    @staticmethod
+    def _is_capability_supported(capabilities: Mapping[str, bool], capability: str) -> bool:
+        """Return True when a capability is supported."""
+        return bool(capabilities.get(capability, False))
+
     async def async_step_init(self, user_input=None):
         """Manage integration options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
         current_slot_count = self.config_entry.options.get(
             "slot_count", self.config_entry.data.get("slot_count", 1)
         )
@@ -219,6 +334,36 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_ACTIVITY_EVENT_COUNT, DEFAULT_ACTIVITY_EVENT_COUNT
             ),
         )
+        lock_entity_id = f"lock.{self.config_entry.data.get('lock_name', '')}"
+        current_capabilities = self._discover_capabilities_for_lock_entity(
+            lock_entity_id,
+            current_lock_profile,
+        )
+
+        if user_input is not None:
+            submitted_profile = user_input.get("lock_profile", current_lock_profile)
+            submitted_capabilities = self._discover_capabilities_for_lock_entity(
+                lock_entity_id,
+                submitted_profile,
+            )
+            merged_options = dict(self.config_entry.options)
+            merged_options.update(user_input)
+
+            if not self._is_capability_supported(
+                submitted_capabilities,
+                CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS,
+            ):
+                merged_options[CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS] = False
+
+            if not self._is_capability_supported(
+                submitted_capabilities,
+                CAP_SUPPORTS_BATTERY_PERCENTAGE,
+            ):
+                merged_options.pop(CONF_BATTERY_LOW_THRESHOLD, None)
+
+            merged_options[CONF_LOCK_CAPABILITIES] = submitted_capabilities
+            return self.async_create_entry(title="", data=merged_options)
+
         current_enable_id_lock_advanced_controls = self.config_entry.options.get(
             CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
             self.config_entry.data.get(
@@ -234,7 +379,7 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
             ),
         )
 
-        schema = vol.Schema({
+        schema_fields: dict = {
             vol.Required("slot_count", default=current_slot_count): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=100)
             ),
@@ -253,14 +398,30 @@ class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_ACTIVITY_EVENT_COUNT,
                 default=current_activity_event_count,
             ): vol.All(vol.Coerce(int), vol.Range(min=3, max=10)),
-            vol.Optional(
-                CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
-                default=current_enable_id_lock_advanced_controls,
-            ): bool,
-            vol.Optional(
-                CONF_BATTERY_LOW_THRESHOLD,
-                default=current_battery_low_threshold,
-            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=100)),
-        })
+        }
+
+        if self._is_capability_supported(
+            current_capabilities,
+            CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS,
+        ):
+            schema_fields[
+                vol.Optional(
+                    CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS,
+                    default=current_enable_id_lock_advanced_controls,
+                )
+            ] = bool
+
+        if self._is_capability_supported(
+            current_capabilities,
+            CAP_SUPPORTS_BATTERY_PERCENTAGE,
+        ):
+            schema_fields[
+                vol.Optional(
+                    CONF_BATTERY_LOW_THRESHOLD,
+                    default=current_battery_low_threshold,
+                )
+            ] = vol.All(vol.Coerce(int), vol.Range(min=5, max=100))
+
+        schema = vol.Schema(schema_fields)
 
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -5,6 +5,10 @@ CONF_ENABLE_PRESENCE_AUTOMATION = "enable_presence_automation"
 CONF_ACTIVITY_EVENT_COUNT = "activity_event_count"
 CONF_ENABLE_ID_LOCK_ADVANCED_CONTROLS = "enable_id_lock_advanced_controls"
 CONF_BATTERY_LOW_THRESHOLD = "battery_low_threshold"
+CONF_LOCK_CAPABILITIES = "lock_capabilities"
+
+CAP_SUPPORTS_BATTERY_PERCENTAGE = "supports_battery_percentage"
+CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS = "supports_id_lock_advanced_controls"
 
 DEFAULT_ENABLE_NOTIFICATIONS = False
 DEFAULT_ENABLE_PRESENCE_AUTOMATION = False
