@@ -14,6 +14,19 @@ _LOGGER = logging.getLogger(__name__)
 PACKAGE_DIR = "packages/zigbee_lock_manager"
 DASHBOARD_FILE = "zigbee_lock_manager_dashboard"  # Output file for the dashboard YAML
 
+
+def _safe_path_within(base: str, filename: str) -> str:
+    """Return ``os.path.join(base, filename)`` and raise if the result
+    escapes *base* (path-traversal guard – OWASP A01)."""
+    full_path = os.path.realpath(os.path.join(base, filename))
+    base_real = os.path.realpath(base)
+    # Ensure the resolved path starts with the base directory.
+    if not (full_path == base_real or full_path.startswith(base_real + os.sep)):
+        raise ValueError(
+            f"Path traversal detected: {full_path!r} is outside {base_real!r}"
+        )
+    return full_path
+
 async def load_template(template_name):
     """Helper function to load the template files."""
     template_path = os.path.join(os.path.dirname(__file__), template_name)
@@ -60,7 +73,10 @@ async def create_helpers_and_automations(hass: HomeAssistant, slot_count: int, l
 
     # Generate a separate YAML file for each slot
     for slot in range(1, slot_count + 1):
-        yaml_file_path = os.path.join(package_path, f"{lock_name.replace('.', '_')}_slot_{slot}.yaml")
+        yaml_file_path = _safe_path_within(
+            package_path,
+            f"{lock_name.replace('.', '_')}_slot_{slot}.yaml",
+        )
 
         # Replace the placeholders in the template for the current slot
         final_yaml_content = template.render(lock_name=lock_name, slot=slot)
@@ -138,12 +154,12 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
 async def create_dashboard_yaml(hass: HomeAssistant, slot_count: int, lock_name: str):
     """Generate a dashboard YAML file."""
     package_path = hass.config.path(PACKAGE_DIR)
-    dashboard_file_path = os.path.join(package_path, DASHBOARD_FILE)
-
     # Load the dashboard head and card templates
     dashboard_head = await load_template("zha_dashboard_head.yaml")
     dashboard_card_template = await load_template("zha_dashboard_card.yaml")
     dashboard_card = jinja2.Template(dashboard_card_template)
+
+    dashboard_file_path = _safe_path_within(package_path, DASHBOARD_FILE)
 
     async with aiofiles.open(dashboard_file_path, 'w') as dashboard_file:
         # Replace {{ lock_name }} in dashboard head
