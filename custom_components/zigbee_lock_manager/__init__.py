@@ -19,7 +19,7 @@ from .const import (
 from .zha_manager import (
     create_helpers_and_automations,
     remove_helpers_and_automations,
-    link_helpers_to_device,
+    link_all_generated_helpers_to_device,
     create_dashboard_yaml  # Import the dashboard creation function
 )
 from homeassistant.helpers import device_registry as dr
@@ -146,19 +146,30 @@ async def async_setup_entry(hass, entry):
     else:
         device = None
 
-    if device is None:
-        device = device_registry.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={(entry.domain, lock_name)},
-            manufacturer="YourManufacturer",
-            name=f"Zigbee Lock Manager ({lock_name})",
-            model="Zigbee Lock",
-            sw_version="1.0",
-        )
+    stale_manager_device = device_registry.async_get_device(
+        identifiers={(entry.domain, lock_name)}
+    )
 
-    # Step 5: Link YAML-created helpers to the device
-    for slot in range(1, slot_count + 1):
-        await link_helpers_to_device(hass, entry, lock_name, slot, device.id)
+    if device is None:
+        if stale_manager_device is not None:
+            device = stale_manager_device
+        else:
+            device = device_registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(entry.domain, lock_name)},
+                manufacturer="YourManufacturer",
+                name=f"Zigbee Lock Manager ({lock_name})",
+                model="Zigbee Lock",
+                sw_version="1.0",
+            )
+    else:
+        # A real lock device exists. Remove stale manager placeholder device to
+        # avoid presenting an empty device page in the UI.
+        if stale_manager_device is not None:
+            device_registry.async_remove_device(stale_manager_device.id)
+
+    # Step 5: Link all YAML-created helpers to the target device.
+    await link_all_generated_helpers_to_device(hass, lock_name, device.id)
 
     # Step 6: Create the dashboard YAML file
     await create_dashboard_yaml(

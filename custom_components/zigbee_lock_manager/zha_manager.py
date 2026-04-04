@@ -240,6 +240,51 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device_id)
     for entity_id in pending_entity_ids:
         _LOGGER.warning("Entity %s not found in entity registry.", entity_id)
 
+
+async def link_all_generated_helpers_to_device(hass, lock_name: str, device_id: str):
+    """Link all generated helper entities for a lock to the selected device."""
+    entity_registry = er.async_get(hass)
+    prefixes = (
+        f"input_text.{lock_name}_lock_user_",
+        f"input_text.{lock_name}_lock_code_",
+        f"input_text.{lock_name}_lock_activity_",
+        f"input_boolean.{lock_name}_lock_code_status_",
+        f"input_boolean.{lock_name}_lock_code_onetime_",
+        f"input_boolean.{lock_name}_lock_code_presence_aware_",
+        f"input_boolean.{lock_name}_lock_notifications_enabled",
+        f"input_boolean.{lock_name}_lock_presence_automation_enabled",
+        f"input_boolean.{lock_name}_id_lock_202_",
+        f"input_button.{lock_name}_lock_code_update_",
+        f"input_button.{lock_name}_lock_code_clear_",
+        f"input_button.{lock_name}_id_lock_202_",
+        f"input_number.{lock_name}_id_lock_202_",
+        f"input_select.{lock_name}_id_lock_202_",
+    )
+
+    for attempt in range(1, 11):
+        matched = []
+        for entry in entity_registry.entities.values():
+            if any(entry.entity_id.startswith(prefix) for prefix in prefixes):
+                matched.append(entry.entity_id)
+
+        if matched:
+            for entity_id in matched:
+                entity_registry.async_update_entity(entity_id, device_id=device_id)
+            _LOGGER.info(
+                "Linked %s generated helper entities for %s to device %s",
+                len(matched),
+                lock_name,
+                device_id,
+            )
+            return
+
+        await asyncio.sleep(1)
+
+    _LOGGER.warning(
+        "No generated helper entities found for %s after waiting for registry updates",
+        lock_name,
+    )
+
 # New function to create the dashboard YAML
 async def create_dashboard_yaml(
     hass: HomeAssistant,
