@@ -18,11 +18,40 @@ views:
 
           Use each slot card below to set a user name, update code on the lock, or clear a slot.
 
+          {% if lock_profile == "id_lock_202_multi" %}
+          **Quick operations:**
+          Add unit: Install module with batteries removed, then run Add unit on hub.
+          Remove unit: `[Master PIN] * 9 * 0`
+          Manual sync: `[Master PIN] * 9 * 1`
+          {% endif %}
+
       - type: entities
         title: Lock Status
         entities:
           - entity: lock.{{ lock_name }}
             name: Door Lock
+
+{% if lock_profile == "id_lock_202_multi" %}
+      - type: entities
+        title: ID Lock 202 Diagnostics
+        entities:
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: lock_state
+            name: Lock state
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: door_state
+            name: Door state
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: battery_percentage
+            name: Battery percentage
+          - type: attribute
+            entity: lock.{{ lock_name }}
+            attribute: sound_volume
+            name: Sound volume
+{% endif %}
 
       - type: entities
         title: Automation Controls

@@ -63,6 +63,24 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow handler."""
         return LockCodeOptionsFlowHandler(config_entry)
 
+    async def _async_maybe_notify_id_lock_safety(self, lock_profile: str) -> None:
+        """Send a one-time setup reminder for ID Lock 202 battery handling."""
+        if lock_profile != LOCK_PROFILE_ID_LOCK_202_MULTI:
+            return
+
+        if self.hass.services.has_service("persistent_notification", "create"):
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "title": "ID Lock 202 setup reminder",
+                    "message": (
+                        "When inserting or removing the Zigbee module, remove batteries first. "
+                        "Operating on the module with batteries inserted can damage the module."
+                    ),
+                },
+            )
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
@@ -94,6 +112,10 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Store the processed lock_name instead of the full entity ID
                 user_input["lock_name"] = lock_name
+
+                await self._async_maybe_notify_id_lock_safety(
+                    user_input.get("lock_profile", LOCK_PROFILE_GENERIC)
+                )
 
                 _LOGGER.debug("Config flow completed for lock: %s, slots: %s",
                               lock_name, user_input.get("slot_count"))

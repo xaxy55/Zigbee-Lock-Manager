@@ -68,7 +68,7 @@ Timeline event rows: `How many recent events to show in dashboard activity timel
 After installation, you can change `slot_count` and `lock_profile` from the integration `Configure` options without removing and re-adding the integration.
 
 ### New automation behavior notes
-1. One-time PIN handling clears all enabled one-time slots after an unlock event is detected for the lock.
+1. One-time PIN handling attempts to detect the unlocking slot (`code_slot`, `code_id`, `user_id`, or numeric `changed_by`) and clears only that one-time slot.
 2. Presence-aware automations require at least one `person.*` entity in Home Assistant.
 3. Presence-aware slots are turned off when nobody is home and turned on when someone arrives.
 

@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from .const import (
     CONF_ACTIVITY_EVENT_COUNT,
@@ -8,6 +9,7 @@ from .const import (
     DEFAULT_ACTIVITY_EVENT_COUNT,
     DEFAULT_ENABLE_NOTIFICATIONS,
     DEFAULT_ENABLE_PRESENCE_AUTOMATION,
+    DOMAIN,
     LOCK_PROFILE_GENERIC,
 )
 from .zha_manager import (
@@ -19,6 +21,39 @@ from .zha_manager import (
 from homeassistant.helpers import device_registry as dr
 
 _LOGGER = logging.getLogger(__name__)
+
+SERVICE_ID_LOCK_202_MANUAL_SYNC_GUIDE = "id_lock_202_manual_sync_guide"
+
+
+def _register_services(hass: HomeAssistant) -> None:
+    """Register domain services once."""
+    if hass.services.has_service(DOMAIN, SERVICE_ID_LOCK_202_MANUAL_SYNC_GUIDE):
+        return
+
+    async def _handle_manual_sync_guide(call):
+        lock_entity = call.data.get("lock_entity", "(selected lock)")
+        title = f"ID Lock 202 manual sync guide: {lock_entity}"
+        message = (
+            "1) Open the door.\n"
+            "2) Hold key button until panel is active.\n"
+            "3) Enter [Master PIN], then *.\n"
+            "4) Enter 9, then *.\n"
+            "5) Enter 1 to start manual sync."
+        )
+
+        if hass.services.has_service("persistent_notification", "create"):
+            await hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {"title": title, "message": message},
+            )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ID_LOCK_202_MANUAL_SYNC_GUIDE,
+        _handle_manual_sync_guide,
+        schema=vol.Schema({vol.Optional("lock_entity"): str}),
+    )
 
 
 def _entry_value(entry, key, default=None):
@@ -34,6 +69,8 @@ async def _async_options_updated(hass: HomeAssistant, entry):
 
 async def async_setup_entry(hass, entry):
     """Set up Zigbee Lock Manager from a config entry."""
+    _register_services(hass)
+
     slot_count = _entry_value(entry, "slot_count")
     lock_name = entry.data.get("lock_name")
     lock_profile = _entry_value(entry, "lock_profile", LOCK_PROFILE_GENERIC)

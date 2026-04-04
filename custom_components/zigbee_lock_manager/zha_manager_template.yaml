@@ -226,9 +226,37 @@ automation:
         entity_id: lock.{{ lock_name }}
         to: "unlocked"
     action:
-{% for managed_slot in range(1, slot_count + 1) %}
+      - variables:
+          used_slot: >-
+            {% set attrs = trigger.to_state.attributes %}
+            {% set code_slot = attrs.get("code_slot") %}
+            {% set code_id = attrs.get("code_id") %}
+            {% set user_id = attrs.get("user_id") %}
+            {% set changed_by = attrs.get("changed_by") %}
+            {% if code_slot is number %}
+              {{ code_slot | int }}
+            {% elif code_slot is string and code_slot is match("^[0-9]+$") %}
+              {{ code_slot | int }}
+            {% elif code_id is number %}
+              {{ code_id | int }}
+            {% elif code_id is string and code_id is match("^[0-9]+$") %}
+              {{ code_id | int }}
+            {% elif user_id is number %}
+              {{ user_id | int }}
+            {% elif user_id is string and user_id is match("^[0-9]+$") %}
+              {{ user_id | int }}
+            {% elif changed_by is number %}
+              {{ changed_by | int }}
+            {% elif changed_by is string and changed_by is match("^[0-9]+$") %}
+              {{ changed_by | int }}
+            {% else %}
+              0
+            {% endif %}
       - choose:
+{% for managed_slot in range(1, slot_count + 1) %}
           - conditions:
+              - condition: template
+                value_template: '{{ "{{ used_slot == " + managed_slot|string + " }}" }}'
               - condition: state
                 entity_id: input_boolean.{{ lock_name }}_lock_code_onetime_{{ managed_slot }}
                 state: "on"
@@ -257,6 +285,13 @@ automation:
                   variables:
                     message: "Consumed one-time PIN in slot {{ managed_slot }} after unlock on lock.{{ lock_name }}"
 {% endfor %}
+        default:
+          - service: script.turn_on
+            target:
+              entity_id: script.{{ lock_name }}_audit_event
+            data:
+              variables:
+                message: "Unlock detected but one-time slot could not be resolved from lock attributes (code_slot/code_id/user_id/changed_by)."
     mode: single
 
   - alias: "{{ lock_name }}: Presence-Aware Slot Enforcement"
