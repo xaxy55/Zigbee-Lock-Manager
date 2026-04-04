@@ -4,6 +4,7 @@ import aiofiles
 import logging
 import shutil
 import asyncio
+from functools import partial
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
@@ -52,6 +53,36 @@ def _safe_path_within(base: str, filename: str) -> str:
         )
     return full_path
 
+
+async def _async_exists(hass: HomeAssistant, path: str) -> bool:
+    """Return whether a filesystem path exists without blocking the event loop."""
+    return await hass.async_add_executor_job(os.path.exists, path)
+
+
+async def _async_makedirs(hass: HomeAssistant, path: str) -> None:
+    """Create a directory tree without blocking the event loop."""
+    await hass.async_add_executor_job(partial(os.makedirs, path, exist_ok=True))
+
+
+async def _async_listdir(hass: HomeAssistant, path: str) -> list[str]:
+    """List directory entries without blocking the event loop."""
+    return await hass.async_add_executor_job(os.listdir, path)
+
+
+async def _async_remove(hass: HomeAssistant, path: str) -> None:
+    """Remove a file without blocking the event loop."""
+    await hass.async_add_executor_job(os.remove, path)
+
+
+async def _async_isdir(hass: HomeAssistant, path: str) -> bool:
+    """Return whether path is a directory without blocking the event loop."""
+    return await hass.async_add_executor_job(os.path.isdir, path)
+
+
+async def _async_isfile(hass: HomeAssistant, path: str) -> bool:
+    """Return whether path is a file without blocking the event loop."""
+    return await hass.async_add_executor_job(os.path.isfile, path)
+
 async def load_template(template_name):
     """Helper function to load the template files."""
     template_path = os.path.join(os.path.dirname(__file__), template_name)
@@ -98,8 +129,8 @@ async def create_helpers_and_automations(
     )
 
     # Ensure the directory exists
-    if not os.path.exists(package_path):
-        os.makedirs(package_path)
+    if not await _async_exists(hass, package_path):
+        await _async_makedirs(hass, package_path)
 
     # Load the template content
     template_content = await load_template("zha_manager_template.yaml")
@@ -112,10 +143,10 @@ async def create_helpers_and_automations(
     # Remove previously generated slot YAML files for this lock so option
     # changes (for example, lower slot_count) don't leave stale automations.
     lock_file_prefix = lock_slot_file_prefix(lock_name)
-    for filename in os.listdir(package_path):
+    for filename in await _async_listdir(hass, package_path):
         if filename.startswith(lock_file_prefix) and filename.endswith(".yaml"):
             stale_file_path = _safe_path_within(package_path, filename)
-            os.remove(stale_file_path)
+            await _async_remove(hass, stale_file_path)
             _LOGGER.debug("Removed stale slot YAML: %s", stale_file_path)
 
     # Generate a separate YAML file for each slot
@@ -390,21 +421,21 @@ async def remove_helpers_and_automations(hass, lock_name, slot_count):
     # Remove only generated YAML for this lock and optional dashboard file.
     package_path = hass.config.path(PACKAGE_DIR)
     lock_file_prefix = lock_slot_file_prefix(lock_name)
-    if os.path.isdir(package_path):
-        for filename in os.listdir(package_path):
+    if await _async_isdir(hass, package_path):
+        for filename in await _async_listdir(hass, package_path):
             if filename.startswith(lock_file_prefix) and filename.endswith(".yaml"):
                 slot_file_path = _safe_path_within(package_path, filename)
-                os.remove(slot_file_path)
+                await _async_remove(hass, slot_file_path)
 
         dashboard_file_path = _safe_path_within(package_path, DASHBOARD_FILE)
-        if os.path.isfile(dashboard_file_path):
-            os.remove(dashboard_file_path)
+        if await _async_isfile(hass, dashboard_file_path):
+            await _async_remove(hass, dashboard_file_path)
 
         dashboard_card_file_path = _safe_path_within(package_path, DASHBOARD_CARD_FILE)
-        if os.path.isfile(dashboard_card_file_path):
-            os.remove(dashboard_card_file_path)
+        if await _async_isfile(hass, dashboard_card_file_path):
+            await _async_remove(hass, dashboard_card_file_path)
 
-        if not os.listdir(package_path):
+        if not await _async_listdir(hass, package_path):
             await hass.async_add_executor_job(shutil.rmtree, package_path)
 
     _LOGGER.info("Zigbee Lock Manager helpers and automations removed.")
