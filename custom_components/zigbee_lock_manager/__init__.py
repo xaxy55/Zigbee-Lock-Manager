@@ -1,6 +1,7 @@
 import logging
 import asyncio
 from homeassistant.core import HomeAssistant
+from .const import LOCK_PROFILE_GENERIC
 from .zha_manager import (
     create_helpers_and_automations,
     remove_helpers_and_automations,
@@ -15,9 +16,12 @@ async def async_setup_entry(hass, entry):
     """Set up Zigbee Lock Manager from a config entry."""
     slot_count = entry.data.get("slot_count")
     lock_name = entry.data.get("lock_name")
+    lock_profile = entry.data.get("lock_profile", LOCK_PROFILE_GENERIC)
 
     # Step 1: Create the YAML-based helpers and automations
-    await create_helpers_and_automations(hass, slot_count, lock_name, entry)
+    await create_helpers_and_automations(
+        hass, slot_count, lock_name, entry, lock_profile=lock_profile
+    )
 
     # Step 2: Reload automations and input helpers
     await hass.services.async_call("automation", "reload")
@@ -44,7 +48,7 @@ async def async_setup_entry(hass, entry):
         await link_helpers_to_device(hass, entry, lock_name, slot, device)
 
     # Step 6: Create the dashboard YAML file
-    await create_dashboard_yaml(hass, slot_count, lock_name)
+    await create_dashboard_yaml(hass, slot_count, lock_name, lock_profile=lock_profile)
 
     _LOGGER.info("Zigbee Lock Manager setup complete")
     return True

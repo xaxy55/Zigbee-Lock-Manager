@@ -1,7 +1,7 @@
 import re
 import voluptuous as vol
 from homeassistant import config_entries
-from .const import DOMAIN
+from .const import DOMAIN, LOCK_PROFILE_GENERIC, LOCK_PROFILE_OPTIONS
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +60,7 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Coerce(int), vol.Range(min=1, max=100)
             ),
             vol.Required("lock_name", default=lock_entities[0]): vol.In(lock_entities),
+            vol.Optional("lock_profile", default=LOCK_PROFILE_GENERIC): vol.In(LOCK_PROFILE_OPTIONS),
         })
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)

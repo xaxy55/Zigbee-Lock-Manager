@@ -1,1 +1,9 @@
 DOMAIN = "zigbee_lock_manager"
+
+LOCK_PROFILE_GENERIC = "generic"
+LOCK_PROFILE_ID_LOCK_202_MULTI = "id_lock_202_multi"
+
+LOCK_PROFILE_OPTIONS = {
+    LOCK_PROFILE_GENERIC: "Generic ZHA Lock",
+    LOCK_PROFILE_ID_LOCK_202_MULTI: "ID Lock 202 Multi",
+}

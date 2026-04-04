@@ -17,6 +17,7 @@ This integration was inspired by [KeyMaster](https://github.com/FutureTense/keym
 * Disable/Enable code slot
 * Update code on lock
 * Clear code from lock
+* Supports ID Lock 202 Multi (Zigbee module) PIN workflows
 
 ![Alt Text](ZLM_UI.jpg)
 
@@ -51,6 +52,31 @@ At this time the integration is only designed to manage the codes for a single l
 
 Slots: `# of code slots you want to manage` <br>
 Lock: `entity_id of your ZHA keypad lock`
+Lock profile: `Generic ZHA Lock` or `ID Lock 202 Multi`
+
+### ID Lock 202 Multi notes
+If you are using ID Lock 202 Multi with the Zigbee module:
+0. In integration setup, select `Lock profile = ID Lock 202 Multi`.
+1. Pairing:
+  - Open door.
+  - Remove batteries.
+  - Insert Zigbee module in the `Remote Control` slot.
+  - Reinsert batteries.
+  - Start `Add unit` on your hub.
+2. Remove lock from Zigbee network:
+  - Open door.
+  - Hold key button until panel is active.
+  - Enter `[Master PIN]` then `*`.
+  - Enter `9` then `*`.
+  - Enter `0`.
+3. Manual sync:
+  - Open door.
+  - Hold key button until panel is active.
+  - Enter `[Master PIN]` then `*`.
+  - Enter `9` then `*`.
+  - Enter `1`.
+
+Code entry behavior in this integration is aligned with ID Lock PIN limits: only numeric codes with 4-10 digits are sent to the lock.
 
 While not required, after install it's a good practice to reload YAML (Developer Tools > YAML > "ALL YAML CONFIGURATION") to ensure all changes are picked up and will be actionable. 
 

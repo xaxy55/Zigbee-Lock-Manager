@@ -7,8 +7,8 @@ input_text:
     icon: mdi:account
 
   {{ lock_name }}_lock_code_{{ slot }}:
-    name: "Lock Code {{ slot }}"
-    max: 5
+    name: "{{ code_label }} {{ slot }}"
+    max: {{ code_max }}
     mode: text
     icon: mdi:dialpad
 
@@ -58,12 +58,24 @@ automation:
       - platform: state
         entity_id: input_button.{{ lock_name }}_lock_code_update_{{ slot }}
     action:
-      - service: zha.set_lock_user_code
-        target:
-          entity_id: lock.{{ lock_name }}
-        data:
-          code_slot: "{{ slot }}"
-          user_code: '{{ '{{ states("input_text.' + lock_name + '_lock_code_' + slot|string + '") }}' }}'
+      - variables:
+          pin_value: '{{ '{{ states("input_text.' + lock_name + '_lock_code_' + slot|string + '") | trim }}' }}'
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: '{{ '{{ pin_value is match("' + code_validation_regex + '") }}' }}'
+            sequence:
+              - service: zha.set_lock_user_code
+                target:
+                  entity_id: lock.{{ lock_name }}
+                data:
+                  code_slot: "{{ slot }}"
+                  user_code: '{{ '{{ pin_value }}' }}'
+        default:
+          - service: persistent_notification.create
+            data:
+              title: "Invalid lock code"
+              message: "{{ invalid_code_message }}"
     mode: single
 
   - alias: "{{ lock_name }}: Clear Lock Code {{ slot }}"

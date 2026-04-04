@@ -7,7 +7,7 @@ import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
-from .const import DOMAIN
+from .const import DOMAIN, LOCK_PROFILE_ID_LOCK_202_MULTI
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +46,13 @@ async def create_integration_device(hass, config_entry, lock_name):
         sw_version="1.0"
     )
 
-async def create_helpers_and_automations(hass: HomeAssistant, slot_count: int, lock_name: str, config_entry):
+async def create_helpers_and_automations(
+    hass: HomeAssistant,
+    slot_count: int,
+    lock_name: str,
+    config_entry,
+    lock_profile: str = "generic",
+):
     """Create helpers and automations."""
     package_path = hass.config.path(PACKAGE_DIR)
     
@@ -69,6 +75,16 @@ async def create_helpers_and_automations(hass: HomeAssistant, slot_count: int, l
     template_content = await load_template("zha_manager_template.yaml")
     template = jinja2.Template(template_content)
 
+    is_id_lock_202 = lock_profile == LOCK_PROFILE_ID_LOCK_202_MULTI
+    code_label = "Lock PIN" if is_id_lock_202 else "Lock Code"
+    code_max = 10
+    code_validation_regex = "^[0-9]{4,10}$" if is_id_lock_202 else "^.{1,10}$"
+    invalid_code_message = (
+        "Code slot {{ slot }} was not updated. Enter 4-10 digits only (ID Lock 202 Multi)."
+        if is_id_lock_202
+        else "Code slot {{ slot }} was not updated. Enter 1-10 characters."
+    )
+
     entity_registry = er.async_get(hass)
 
     # Generate a separate YAML file for each slot
@@ -79,7 +95,14 @@ async def create_helpers_and_automations(hass: HomeAssistant, slot_count: int, l
         )
 
         # Replace the placeholders in the template for the current slot
-        final_yaml_content = template.render(lock_name=lock_name, slot=slot)
+        final_yaml_content = template.render(
+            lock_name=lock_name,
+            slot=slot,
+            code_label=code_label,
+            code_max=code_max,
+            code_validation_regex=code_validation_regex,
+            invalid_code_message=invalid_code_message,
+        )
 
         # Write the final YAML content to the corresponding slot file
         async with aiofiles.open(yaml_file_path, 'w') as yaml_file:
@@ -151,7 +174,12 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device):
             _LOGGER.warning(f"Entity {entity['entity_id']} not found in entity registry.")
 
 # New function to create the dashboard YAML
-async def create_dashboard_yaml(hass: HomeAssistant, slot_count: int, lock_name: str):
+async def create_dashboard_yaml(
+    hass: HomeAssistant,
+    slot_count: int,
+    lock_name: str,
+    lock_profile: str = "generic",
+):
     """Generate a dashboard YAML file."""
     package_path = hass.config.path(PACKAGE_DIR)
     # Load the dashboard head and card templates
@@ -163,7 +191,10 @@ async def create_dashboard_yaml(hass: HomeAssistant, slot_count: int, lock_name:
 
     async with aiofiles.open(dashboard_file_path, 'w') as dashboard_file:
         # Replace {{ lock_name }} in dashboard head
-        dashboard_head_final = jinja2.Template(dashboard_head).render(lock_name=lock_name)
+        dashboard_head_final = jinja2.Template(dashboard_head).render(
+            lock_name=lock_name,
+            lock_profile=lock_profile,
+        )
 
         # Write the dashboard head first
         await dashboard_file.write(dashboard_head_final)
@@ -171,7 +202,11 @@ async def create_dashboard_yaml(hass: HomeAssistant, slot_count: int, lock_name:
 
         # Process each slot's card
         for slot in range(1, slot_count + 1):
-            card_content = dashboard_card.render(lock_name=lock_name, slot=slot)
+            card_content = dashboard_card.render(
+                lock_name=lock_name,
+                slot=slot,
+                lock_profile=lock_profile,
+            )
             await dashboard_file.write(card_content)
             await dashboard_file.write("\n")
 
