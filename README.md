@@ -19,6 +19,10 @@ This integration was inspired by [KeyMaster](https://github.com/FutureTense/keym
 * Disable/Enable code slot
 * Update code on lock
 * Clear code from lock
+* Lock activity timeline card with recent audit events
+* Optional persistent notifications and audit event hooks (`zigbee_lock_manager_audit`)
+* One-time PIN slots that auto-clear after the next unlock
+* Presence-aware slot automations tied to home occupancy
 * Supports ID Lock 202 Multi (Zigbee module) PIN workflows
 * Improved dashboard UX with lock summary, clearer slot form layout, and direct action buttons
 * Two-view dashboard layout: `Overview` and `Code Slots`
@@ -57,8 +61,16 @@ At this time the integration is only designed to manage the codes for a single l
 Slots: `# of code slots you want to manage` <br>
 Lock: `entity_id of your ZHA keypad lock`
 Lock profile: `Generic ZHA Lock` or `ID Lock 202 Multi`
+Enable notifications: `Creates persistent notifications for audit events`
+Enable presence-aware automations: `Allows automatic slot enable/disable based on occupancy`
+Timeline event rows: `How many recent events to show in dashboard activity timeline (3-10)`
 
 After installation, you can change `slot_count` and `lock_profile` from the integration `Configure` options without removing and re-adding the integration.
+
+### New automation behavior notes
+1. One-time PIN handling clears all enabled one-time slots after an unlock event is detected for the lock.
+2. Presence-aware automations require at least one `person.*` entity in Home Assistant.
+3. Presence-aware slots are turned off when nobody is home and turned on when someone arrives.
 
 ### ID Lock 202 Multi notes
 If you are using ID Lock 202 Multi with the Zigbee module:
