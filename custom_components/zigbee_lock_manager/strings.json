@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zigbee Lock Manager",
+        "description": "Select the lock entity you want to manage and configure its PIN slot settings.",
+        "data": {
+          "lock_name": "Lock entity",
+          "slot_count": "Number of PIN slots",
+          "lock_profile": "Lock profile"
+        },
+        "data_description": {
+          "slot_count": "How many PIN code slots to create (1–100).",
+          "lock_profile": "Choose the profile that matches your lock model for best compatibility."
+        }
+      }
+    },
+    "error": {
+      "no_locks": "No lock entities were found. Please pair your Zigbee lock with Home Assistant before adding this integration.",
+      "invalid_lock_name": "The lock entity ID contains invalid characters. Only lowercase letters, digits, underscores, and hyphens are allowed."
+    },
+    "abort": {
+      "no_locks": "No lock entities found. Please pair a Zigbee lock with Home Assistant first, then add this integration again.",
+      "already_configured": "This lock is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zigbee Lock Manager Options",
+        "description": "Update PIN slot count and lock profile settings.",
+        "data": {
+          "slot_count": "Number of PIN slots",
+          "lock_profile": "Lock profile"
+        },
+        "data_description": {
+          "slot_count": "How many PIN code slots to create (1–100).",
+          "lock_profile": "Choose the profile that matches your lock model for best compatibility."
+        }
+      }
+    }
+  }
+}

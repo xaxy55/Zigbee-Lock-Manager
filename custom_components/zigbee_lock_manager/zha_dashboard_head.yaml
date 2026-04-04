@@ -1,5 +1,25 @@
-title: 'Door Codes'
+title: Door Codes
 views:
   - path: default_view
-    title: '{{ lock_name }}'
+    title: "{{ lock_name }}"
     cards:
+      - type: markdown
+        title: Lock Manager
+        content: >-
+          **Lock:** `lock.{{ lock_name }}`
+
+          {% if lock_profile == "id_lock_202_multi" %}
+          **Profile:** ID Lock 202 Multi  
+          **PIN rules:** 4-10 digits
+          {% else %}
+          **Profile:** Generic ZHA Lock  
+          **Code rules:** 1-10 characters
+          {% endif %}
+
+          Use each slot card below to set a user name, update code on the lock, or clear a slot.
+
+      - type: entities
+        title: Lock Status
+        entities:
+          - entity: lock.{{ lock_name }}
+            name: Door Lock

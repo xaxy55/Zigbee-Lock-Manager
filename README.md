@@ -18,6 +18,7 @@ This integration was inspired by [KeyMaster](https://github.com/FutureTense/keym
 * Update code on lock
 * Clear code from lock
 * Supports ID Lock 202 Multi (Zigbee module) PIN workflows
+* Improved dashboard UX with lock summary, clearer slot form layout, and direct action buttons
 
 ![Alt Text](ZLM_UI.jpg)
 
@@ -81,6 +82,8 @@ If you are using ID Lock 202 Multi with the Zigbee module:
 Code entry behavior in this integration is aligned with ID Lock PIN limits: only numeric codes with 4-10 digits are sent to the lock.
 
 While not required, after install it's a good practice to reload YAML (Developer Tools > YAML > "ALL YAML CONFIGURATION") to ensure all changes are picked up and will be actionable. 
+
+If you already have an existing dashboard from an earlier release, regenerate the dashboard YAML after updating to pick up the improved layout.
 
 ## Dashboard creation
 *You will need access to your config directory and a file editor.  e.g. [VSC](https://github.com/hassio-addons/addon-vscode) or something else. <br>

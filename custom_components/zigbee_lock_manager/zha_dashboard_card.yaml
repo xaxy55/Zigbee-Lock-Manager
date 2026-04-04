@@ -1,17 +1,42 @@
       - type: vertical-stack
         cards:
           - type: entities
-            title: 'Code {{ slot }}'
+            title: "Slot {{ slot }}"
             entities:
               - entity: input_text.{{ lock_name }}_lock_user_{{ slot }}
-                name: Name
+                name: User Name
               - entity: input_text.{{ lock_name }}_lock_code_{{ slot }}
-                name: Code
+                name: >-
+                  {% if lock_profile == "id_lock_202_multi" %}
+                  PIN
+                  {% else %}
+                  Code
+                  {% endif %}
               - entity: input_boolean.{{ lock_name }}_lock_code_status_{{ slot }}
-                name: Code Status
-                state_color: 'true'
+                name: Slot Enabled
+                state_color: true
                 secondary_info: none
-              - entity: input_button.{{ lock_name }}_lock_code_update_{{ slot }}
-                name: Update code on lock
-              - entity: input_button.{{ lock_name }}_lock_code_clear_{{ slot }}
-                name: Clear code from lock
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: Update Lock
+                icon: mdi:upload
+                tap_action:
+                  action: call-service
+                  service: input_button.press
+                  target:
+                    entity_id: input_button.{{ lock_name }}_lock_code_update_{{ slot }}
+                hold_action:
+                  action: none
+
+              - type: button
+                name: Clear Slot
+                icon: mdi:trash-can-outline
+                tap_action:
+                  action: call-service
+                  service: input_button.press
+                  target:
+                    entity_id: input_button.{{ lock_name }}_lock_code_clear_{{ slot }}
+                hold_action:
+                  action: none
