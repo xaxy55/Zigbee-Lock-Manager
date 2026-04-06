@@ -122,7 +122,7 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(config_entry):
         """Get the options flow handler."""
-        return LockCodeOptionsFlowHandler(config_entry)
+        return LockCodeOptionsFlowHandler()
 
     async def _async_maybe_notify_id_lock_safety(self, lock_profile: str) -> None:
         """Send a one-time setup reminder for ID Lock 202 battery handling."""
@@ -264,9 +264,6 @@ class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
 class LockCodeOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Zigbee Lock Manager options."""
-
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
 
     def _detect_profile_for_lock_entity(self, lock_entity_id: str) -> str:
         """Detect lock profile for a selected lock entity via registries."""
