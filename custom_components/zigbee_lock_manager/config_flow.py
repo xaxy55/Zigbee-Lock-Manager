@@ -81,7 +81,7 @@ def infer_lock_capabilities(
 class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Zigbee Lock Manager."""
 
-    VERSION = 1.0
+    VERSION = 1
 
     def _detect_profile_for_lock_entity(self, lock_entity_id: str) -> str:
         """Detect lock profile for a selected lock entity via registries."""
