@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "zha_manager_template.yaml": "jinja2",
+    "zha_dashboard_head.yaml": "jinja2",
+    "zha_dashboard_card.yaml": "jinja2",
+    "zha_dashboard_single_card.yaml": "jinja2"
+  }
+}

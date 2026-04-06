@@ -1,12 +1,12 @@
 # === Input Helpers ===
 input_text:
-  {{ lock_name }}_lock_user_{{ slot }}:
+  "{{ lock_name }}_lock_user_{{ slot }}":
     name: "Lock User {{ slot }}"
     max: 25
     mode: text
     icon: mdi:account
 
-  {{ lock_name }}_lock_code_{{ slot }}:
+  "{{ lock_name }}_lock_code_{{ slot }}":
     name: "{{ code_label }} {{ slot }}"
     max: {{ code_max }}
     mode: text
@@ -14,7 +14,7 @@ input_text:
 {% if slot == 1 %}
 {% for activity_index in range(1, activity_event_count + 1) %}
 
-  {{ lock_name }}_lock_activity_{{ activity_index }}:
+  "{{ lock_name }}_lock_activity_{{ activity_index }}":
     name: "Activity {{ activity_index }}"
     max: 255
     mode: text
@@ -22,38 +22,38 @@ input_text:
 {% endif %}
 
 input_boolean:
-  {{ lock_name }}_lock_code_status_{{ slot }}:
+  "{{ lock_name }}_lock_code_status_{{ slot }}":
     name: "Code Status {{ slot }}"
 
-  {{ lock_name }}_lock_code_onetime_{{ slot }}:
+  "{{ lock_name }}_lock_code_onetime_{{ slot }}":
     name: "One-time PIN {{ slot }}"
     icon: mdi:numeric-1-box
 
-  {{ lock_name }}_lock_code_presence_aware_{{ slot }}:
+  "{{ lock_name }}_lock_code_presence_aware_{{ slot }}":
     name: "Presence-aware {{ slot }}"
     icon: mdi:account-group
 {% if slot == 1 %}
 
-  {{ lock_name }}_lock_notifications_enabled:
+  "{{ lock_name }}_lock_notifications_enabled":
     name: "Lock Manager Notifications"
     initial: {{ 'true' if enable_notifications else 'false' }}
 
-  {{ lock_name }}_lock_presence_automation_enabled:
+  "{{ lock_name }}_lock_presence_automation_enabled":
     name: "Presence Automation Enabled"
     initial: {{ 'true' if enable_presence_automation else 'false' }}
 
 {% if lock_profile == "id_lock_202_multi" %}
-  {{ lock_name }}_id_lock_202_relock_enabled:
+  "{{ lock_name }}_id_lock_202_relock_enabled":
     name: "ReLock Enabled"
     initial: false
     icon: mdi:lock-reset
 
-  {{ lock_name }}_id_lock_202_rfid_enabled:
+  "{{ lock_name }}_id_lock_202_rfid_enabled":
     name: "RFID Enabled"
     initial: true
     icon: mdi:card-bulleted
 
-  {{ lock_name }}_id_lock_202_master_pin_mode:
+  "{{ lock_name }}_id_lock_202_master_pin_mode":
     name: "Master PIN Unlock Enabled"
     initial: true
     icon: mdi:key-change
@@ -61,40 +61,40 @@ input_boolean:
 {% endif %}
 
 input_button:
-  {{ lock_name }}_lock_code_update_{{ slot }}:
+  "{{ lock_name }}_lock_code_update_{{ slot }}":
     name: "Update Code {{ slot }}"
     icon: mdi:upload
 
-  {{ lock_name }}_lock_code_clear_{{ slot }}:
+  "{{ lock_name }}_lock_code_clear_{{ slot }}":
     name: "Clear Code {{ slot }}"
     icon: mdi:trash-can-outline
 
 {% if slot == 1 and lock_profile == "id_lock_202_multi" %}
 
-  {{ lock_name }}_id_lock_202_apply_lock_mode:
+  "{{ lock_name }}_id_lock_202_apply_lock_mode":
     name: "Apply Lock Mode"
     icon: mdi:lock-cog
 
-  {{ lock_name }}_id_lock_202_apply_relock:
+  "{{ lock_name }}_id_lock_202_apply_relock":
     name: "Apply ReLock"
     icon: mdi:lock-reset
 
-  {{ lock_name }}_id_lock_202_apply_audio_volume:
+  "{{ lock_name }}_id_lock_202_apply_audio_volume":
     name: "Apply Audio Volume"
     icon: mdi:volume-high
 
-  {{ lock_name }}_id_lock_202_apply_rfid:
+  "{{ lock_name }}_id_lock_202_apply_rfid":
     name: "Apply RFID"
     icon: mdi:card-bulleted
 
-  {{ lock_name }}_id_lock_202_apply_master_pin_mode:
+  "{{ lock_name }}_id_lock_202_apply_master_pin_mode":
     name: "Apply Master PIN Mode"
     icon: mdi:key-change
 {% endif %}
 
 {% if slot == 1 and lock_profile == "id_lock_202_multi" %}
 input_number:
-  {{ lock_name }}_id_lock_202_battery_low_threshold:
+  "{{ lock_name }}_id_lock_202_battery_low_threshold":
     name: "Battery Low Threshold"
     min: 5
     max: 100
@@ -104,7 +104,7 @@ input_number:
     icon: mdi:battery-alert
     initial: {{ battery_low_threshold }}
 
-  {{ lock_name }}_id_lock_202_audio_volume:
+  "{{ lock_name }}_id_lock_202_audio_volume":
     name: "Audio Volume"
     min: 0
     max: 5
@@ -114,7 +114,7 @@ input_number:
     initial: 5
 
 input_select:
-  {{ lock_name }}_id_lock_202_lock_mode:
+  "{{ lock_name }}_id_lock_202_lock_mode":
     name: "Lock Mode"
     options:
       - "0"
@@ -134,7 +134,7 @@ template:
         state: '{{ "{{ expand(states.person) | selectattr(\"state\", \"eq\", \"home\") | list | count > 0 }}" }}'
 
 script:
-  {{ lock_name }}_record_activity:
+  "{{ lock_name }}_record_activity":
     alias: "{{ lock_name }}: Record Activity"
     mode: queued
     fields:
@@ -152,7 +152,7 @@ script:
           entity_id: input_text.{{ lock_name }}_lock_activity_1
           value: '{{ "{{ message }}" }}'
 
-  {{ lock_name }}_audit_event:
+  "{{ lock_name }}_audit_event":
     alias: "{{ lock_name }}: Audit Event"
     mode: queued
     fields:
