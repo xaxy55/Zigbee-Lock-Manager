@@ -433,9 +433,9 @@ automation:
     condition:
       - condition: template
         value_template: >-
-          {% set battery = state_attr('lock.{{ lock_name }}', 'battery_percentage') %}
-          {% set threshold = states('input_number.{{ lock_name }}_id_lock_202_battery_low_threshold') | int(30) %}
-          {{ battery is number and (battery | int) <= threshold }}
+          {{ "{% set battery = state_attr('lock." + lock_name + "', 'battery_percentage') %}" }}
+          {{ "{% set threshold = states('input_number." + lock_name + "_id_lock_202_battery_low_threshold') | int(30) %}" }}
+          {{ "{{ battery is number and (battery | int) <= threshold }}" }}
     action:
       - service: script.turn_on
         target:
