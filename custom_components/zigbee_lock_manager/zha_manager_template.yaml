@@ -461,6 +461,30 @@ automation:
                     {{ '{{ states("input_number.' + lock_name + '_id_lock_202_battery_low_threshold") }}' }}%).
     mode: single
 
+  - alias: "{{ lock_name }}: ID Lock 202 Door Error Alert"
+    trigger:
+      - platform: state
+        entity_id: lock.{{ lock_name }}
+        attribute: door_state
+    condition:
+      - condition: template
+        value_template: >-
+          {% raw %}
+          {% set door_state_raw = trigger.to_state.attributes.door_state if trigger.to_state is not none else none %}
+          {% set door_state_normalized = (door_state_raw | string | lower | replace('_', ' ')) if door_state_raw is not none else '' %}
+          {{ door_state_normalized in ['jammed', 'forced open', 'unspecified error'] }}
+          {% endraw %}
+    action:
+      - service: script.turn_on
+        target:
+          entity_id: script.{{ lock_name }}_audit_event
+        data:
+          variables:
+            message: >-
+              Door tamper/jam alert: lock.{{ lock_name }} reported
+              {{ '{{ trigger.to_state.attributes.door_state if trigger.to_state is not none else "unknown" }}' }}.
+    mode: single
+
 {% if enable_id_lock_advanced_controls %}
   - alias: "{{ lock_name }}: Apply ID Lock 202 Lock Mode"
     trigger:
