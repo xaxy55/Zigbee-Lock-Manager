@@ -14,8 +14,9 @@ DIM     := \033[2m
 
 # ── Config ────────────────────────────────────────────────────────────────────
 MANIFEST := custom_components/zigbee_lock_manager/manifest.json
-PYTHON   := python3
-PIP      := pip3
+VENV     := .venv
+PYTHON   := $(VENV)/bin/python
+PIP      := $(VENV)/bin/pip
 TEST_DIR := tests
 
 # Extract current version from manifest.json (e.g. "0.0.4")
@@ -88,13 +89,15 @@ lint:
 .PHONY: install
 install:
 	@echo "$(BOLD)$(CYAN)Installing dev dependencies…$(RESET)"
-	@$(PIP) install --quiet pytest flake8 voluptuous
+	@test -d $(VENV) || python3 -m venv $(VENV)
+	@$(PIP) install --quiet pytest flake8 voluptuous jinja2 aiofiles
 	@echo "$(GREEN)Done.$(RESET)"
 
 .PHONY: update
 update:
 	@echo "$(BOLD)$(CYAN)Upgrading dev dependencies…$(RESET)"
-	@$(PIP) install --quiet --upgrade pytest flake8 voluptuous
+	@test -d $(VENV) || python3 -m venv $(VENV)
+	@$(PIP) install --quiet --upgrade pytest flake8 voluptuous jinja2 aiofiles
 	@echo "$(GREEN)Done.$(RESET)"
 
 # ── Clean ─────────────────────────────────────────────────────────────────────

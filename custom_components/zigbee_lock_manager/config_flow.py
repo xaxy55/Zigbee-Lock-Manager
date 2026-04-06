@@ -78,6 +78,7 @@ def infer_lock_capabilities(
         CAP_SUPPORTS_ID_LOCK_ADVANCED_CONTROLS: supports_advanced_controls,
     }
 
+
 class LockCodeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Zigbee Lock Manager."""
 

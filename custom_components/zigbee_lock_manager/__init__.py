@@ -73,6 +73,7 @@ async def _async_options_updated(hass: HomeAssistant, entry):
     """Reload entry when options are updated."""
     await hass.config_entries.async_reload(entry.entry_id)
 
+
 async def async_setup_entry(hass, entry):
     """Set up Zigbee Lock Manager from a config entry."""
     _register_services(hass)
@@ -199,6 +200,7 @@ async def async_setup_entry(hass, entry):
 
     _LOGGER.info("Zigbee Lock Manager setup complete")
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry):
     """Unload Zigbee Lock Manager and clean up."""

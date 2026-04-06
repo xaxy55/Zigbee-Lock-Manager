@@ -31,7 +31,12 @@ def test_slot_file_prefix_generation():
 
 
 def _render_template_for_profile(lock_profile: str) -> str:
-    template_path = Path(__file__).resolve().parents[1] / "custom_components" / "zigbee_lock_manager" / "zha_manager_template.yaml"
+    template_path = (
+        Path(__file__).resolve().parents[1]
+        / "custom_components"
+        / "zigbee_lock_manager"
+        / "zha_manager_template.yaml"
+    )
     template = jinja2.Template(template_path.read_text())
     return template.render(
         lock_name="front_door",

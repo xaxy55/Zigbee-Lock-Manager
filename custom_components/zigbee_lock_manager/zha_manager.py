@@ -83,11 +83,13 @@ async def _async_isfile(hass: HomeAssistant, path: str) -> bool:
     """Return whether path is a file without blocking the event loop."""
     return await hass.async_add_executor_job(os.path.isfile, path)
 
+
 async def load_template(template_name):
     """Helper function to load the template files."""
     template_path = os.path.join(os.path.dirname(__file__), template_name)
     async with aiofiles.open(template_path, 'r') as template_file:
         return await template_file.read()
+
 
 # Register a device for the integration
 async def create_integration_device(hass, config_entry, lock_name):
@@ -101,6 +103,7 @@ async def create_integration_device(hass, config_entry, lock_name):
         name=f"{lock_name} Zigbee Lock Manager",
         sw_version="1.0"
     )
+
 
 async def create_helpers_and_automations(
     hass: HomeAssistant,
@@ -116,10 +119,10 @@ async def create_helpers_and_automations(
 ):
     """Create helpers and automations."""
     package_path = hass.config.path(PACKAGE_DIR)
-    
+
     # Create the device in the registry
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_or_create(
+    device_registry.async_get_or_create(
         config_entry_id=config_entry.entry_id,
         identifiers={(DOMAIN, lock_name)},
         manufacturer="YourManufacturer",
@@ -137,8 +140,6 @@ async def create_helpers_and_automations(
     template = jinja2.Template(template_content)
 
     render_settings = profile_render_settings(lock_profile)
-
-    entity_registry = er.async_get(hass)
 
     # Remove previously generated slot YAML files for this lock so option
     # changes (for example, lower slot_count) don't leave stale automations.
@@ -218,8 +219,8 @@ async def link_helpers_to_device(hass, config_entry, lock_name, slot, device_id)
     entity_registry = er.async_get(hass)
 
     # Define the expected entity_id for the helpers from the YAML configuration
-    entity_id_input_text_user = f"input_text.{lock_name}_lock_user_{slot}" 
-    entity_id_input_text_code = f"input_text.{lock_name}_lock_code_{slot}"  
+    entity_id_input_text_user = f"input_text.{lock_name}_lock_user_{slot}"
+    entity_id_input_text_code = f"input_text.{lock_name}_lock_code_{slot}"
     entity_id_input_boolean_status = f"input_boolean.{lock_name}_lock_code_status_{slot}"
     entity_id_input_boolean_onetime = f"input_boolean.{lock_name}_lock_code_onetime_{slot}"
     entity_id_input_boolean_presence_aware = (
@@ -317,6 +318,7 @@ async def link_all_generated_helpers_to_device(hass, lock_name: str, device_id: 
         lock_name,
     )
 
+
 # New function to create the dashboard YAML
 async def create_dashboard_yaml(
     hass: HomeAssistant,
@@ -399,6 +401,7 @@ async def create_dashboard_card_yaml(
         await dashboard_card_file.write(card_content)
 
     _LOGGER.info("Created dashboard card YAML at %s", dashboard_card_file_path)
+
 
 # Remove helpers and automations
 async def remove_helpers_and_automations(hass, lock_name, slot_count):
